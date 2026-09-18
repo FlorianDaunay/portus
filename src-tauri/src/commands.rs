@@ -7,27 +7,45 @@ use serde::Serialize;
 use tauri::AppHandle;
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DaemonInfo {
     pub connected: bool,
     pub version: String,
     pub containers_running: usize,
     pub containers_stopped: usize,
     pub images: usize,
-    pub disk_usage_mb: f64,
+    pub images_size_mb: f64,
+}
+
+impl DaemonInfo {
+    fn disconnected() -> Self {
+        DaemonInfo {
+            connected: false,
+            version: String::new(),
+            containers_running: 0,
+            containers_stopped: 0,
+            images: 0,
+            images_size_mb: 0.0,
+        }
+    }
 }
 
 #[tauri::command]
 pub async fn get_daemon_info() -> Result<DaemonInfo, String> {
-    let docker = docker::connect()?;
-    let version = docker.version().await.map_err(|e| e.to_string())?;
-    let containers = docker::containers::list(&docker).await?;
-    let images = docker::images::list(&docker).await?;
-    let volumes = docker::volumes::list(&docker).await?;
+    let Ok(docker) = docker::connect() else {
+        return Ok(DaemonInfo::disconnected());
+    };
+
+    let Ok(version) = docker.version().await else {
+        return Ok(DaemonInfo::disconnected());
+    };
+
+    let containers = docker::containers::list(&docker).await.unwrap_or_default();
+    let images = docker::images::list(&docker).await.unwrap_or_default();
 
     let running = containers.iter().filter(|c| c.status == "running").count();
     let stopped = containers.len() - running;
-    let disk_usage_mb = images.iter().map(|i| i.size_mb).sum::<f64>()
-        + volumes.iter().map(|v| v.size_mb).sum::<f64>();
+    let images_size_mb = images.iter().map(|i| i.size_mb).sum::<f64>();
 
     Ok(DaemonInfo {
         connected: true,
@@ -35,7 +53,7 @@ pub async fn get_daemon_info() -> Result<DaemonInfo, String> {
         containers_running: running,
         containers_stopped: stopped,
         images: images.len(),
-        disk_usage_mb,
+        images_size_mb,
     })
 }
 
@@ -107,6 +125,7 @@ pub async fn list_recent_logs() -> Result<Vec<docker::logs::LogLine>, String> {
     for c in containers.into_iter().filter(|c| c.status == "running").take(5) {
         all.extend(docker::logs::recent(&docker, &c.id, &c.name).await);
     }
+    all.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     Ok(all)
 }
 

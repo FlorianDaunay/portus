@@ -4,6 +4,7 @@ export interface ContainerSummary {
   id: string;
   name: string;
   image: string;
+  imageId: string;
   status: ContainerStatus;
   statusText: string;
   ports: string[];
@@ -27,7 +28,6 @@ export interface VolumeSummary {
   name: string;
   driver: string;
   mountpoint: string;
-  sizeMb: number;
   inUse: boolean;
 }
 
@@ -45,7 +45,6 @@ export interface ComposeProject {
 }
 
 export interface LogLine {
-  id: string;
   containerId: string;
   containerName: string;
   timestamp: string;
@@ -59,5 +58,5 @@ export interface DaemonInfo {
   containersRunning: number;
   containersStopped: number;
   images: number;
-  diskUsageMb: number;
+  imagesSizeMb: number;
 }

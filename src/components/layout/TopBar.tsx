@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 export function TopBar() {
   const { theme, toggle } = useThemeStore();
   const { data } = useQuery({ queryKey: ["daemon-info"], queryFn: getDaemonInfo, refetchInterval: 5000 });
-  const connected = data?.connected ?? true;
+  const connected = data?.connected ?? false;
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-6">

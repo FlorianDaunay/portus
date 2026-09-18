@@ -5,13 +5,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConnectionError } from "@/components/ui/ConnectionError";
 import { listVolumes, removeVolume } from "@/lib/api";
-import { formatBytes } from "@/lib/utils";
 
 export function Volumes() {
   const [query, setQuery] = useState("");
   const queryClient = useQueryClient();
-  const { data: volumes } = useQuery({ queryKey: ["volumes"], queryFn: listVolumes });
+  const { data: volumes, isError, error } = useQuery({ queryKey: ["volumes"], queryFn: listVolumes });
   const removeMutation = useMutation({
     mutationFn: removeVolume,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["volumes"] }),
@@ -34,28 +34,33 @@ export function Volumes() {
       </div>
 
       <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
+        {isError ? (
+          <ConnectionError error={error} />
+        ) : filtered.length === 0 ? (
           <EmptyState icon={HardDrive} title="No volumes found" />
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Driver</th>
-                <th className="px-5 py-3 font-medium">Size</th>
-                <th className="px-5 py-3 font-medium">In use</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <th className="w-[22%] px-5 py-3 font-medium">Name</th>
+                <th className="w-[10%] px-5 py-3 font-medium">Driver</th>
+                <th className="w-[46%] px-5 py-3 font-medium">Mountpoint</th>
+                <th className="w-[12%] px-5 py-3 font-medium">In use</th>
+                <th className="w-[10%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((v) => (
                 <tr key={v.name} className="transition-colors hover:bg-surface-hover">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-text-primary">{v.name}</p>
-                    <p className="truncate text-xs text-text-muted">{v.mountpoint}</p>
+                  <td className="truncate px-5 py-3">
+                    <p className="truncate font-medium text-text-primary" title={v.name}>
+                      {v.name}
+                    </p>
                   </td>
                   <td className="px-5 py-3 text-text-secondary">{v.driver}</td>
-                  <td className="px-5 py-3 text-text-secondary">{formatBytes(v.sizeMb)}</td>
+                  <td className="truncate px-5 py-3 text-xs text-text-muted" title={v.mountpoint}>
+                    {v.mountpoint}
+                  </td>
                   <td className="px-5 py-3">
                     {v.inUse ? (
                       <span className="text-xs font-medium text-success">In use</span>

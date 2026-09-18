@@ -3,10 +3,11 @@ import { Combine, FileCode2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConnectionError } from "@/components/ui/ConnectionError";
 import { listComposeProjects } from "@/lib/api";
 
 export function Compose() {
-  const { data: projects } = useQuery({ queryKey: ["compose"], queryFn: listComposeProjects });
+  const { data: projects, isError, error } = useQuery({ queryKey: ["compose"], queryFn: listComposeProjects });
 
   return (
     <div className="flex flex-col gap-6">
@@ -15,7 +16,13 @@ export function Compose() {
         <p className="mt-1 text-sm text-text-muted">{projects?.length ?? 0} projects</p>
       </div>
 
-      {projects?.length === 0 && (
+      {isError && (
+        <Card>
+          <ConnectionError error={error} />
+        </Card>
+      )}
+
+      {!isError && projects?.length === 0 && (
         <Card>
           <EmptyState icon={Combine} title="No compose projects found" description="Projects with docker-compose.yml will show up here." />
         </Card>

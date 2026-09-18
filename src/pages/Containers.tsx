@@ -7,13 +7,18 @@ import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Meter } from "@/components/ui/Meter";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConnectionError } from "@/components/ui/ConnectionError";
 import { listContainers, removeContainer, restartContainer, startContainer, stopContainer } from "@/lib/api";
 import { Link } from "react-router-dom";
 
 export function Containers() {
   const [query, setQuery] = useState("");
   const queryClient = useQueryClient();
-  const { data: containers } = useQuery({ queryKey: ["containers"], queryFn: listContainers, refetchInterval: 5000 });
+  const {
+    data: containers,
+    isError,
+    error,
+  } = useQuery({ queryKey: ["containers"], queryFn: listContainers, refetchInterval: 5000 });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["containers"] });
   const startMutation = useMutation({ mutationFn: startContainer, onSuccess: invalidate });
@@ -44,19 +49,21 @@ export function Containers() {
       </div>
 
       <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
+        {isError ? (
+          <ConnectionError error={error} />
+        ) : filtered.length === 0 ? (
           <EmptyState icon={Boxes} title="No containers found" description="Try adjusting your search." />
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">Image</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">CPU</th>
-                <th className="px-5 py-3 font-medium">Memory</th>
-                <th className="px-5 py-3 font-medium">Ports</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <th className="w-[18%] px-5 py-3 font-medium">Name</th>
+                <th className="w-[22%] px-5 py-3 font-medium">Image</th>
+                <th className="w-[11%] px-5 py-3 font-medium">Status</th>
+                <th className="w-[11%] px-5 py-3 font-medium">CPU</th>
+                <th className="w-[13%] px-5 py-3 font-medium">Memory</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Ports</th>
+                <th className="w-[10%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -66,29 +73,35 @@ export function Containers() {
                   startMutation.isPending || stopMutation.isPending || restartMutation.isPending || removeMutation.isPending;
                 return (
                   <tr key={c.id} className="transition-colors hover:bg-surface-hover">
-                    <td className="px-5 py-3">
-                      <Link to={`/containers/${c.id}`} className="font-medium text-text-primary hover:text-accent hover:underline">
+                    <td className="truncate px-5 py-3">
+                      <Link
+                        to={`/containers/${c.id}`}
+                        className="block truncate font-medium text-text-primary hover:text-accent hover:underline"
+                        title={c.name}
+                      >
                         {c.name}
                       </Link>
-                      <p className="text-xs text-text-muted">{c.statusText}</p>
+                      <p className="truncate text-xs text-text-muted">{c.statusText}</p>
                     </td>
-                    <td className="px-5 py-3 text-text-secondary">{c.image}</td>
+                    <td className="truncate px-5 py-3 text-text-secondary" title={c.image}>
+                      {c.image}
+                    </td>
                     <td className="px-5 py-3">
                       <StatusPill status={c.status} />
                     </td>
                     <td className="px-5 py-3">
-                      <div className="w-20">
+                      <div className="w-16">
                         <Meter percent={c.cpuPercent} />
                         <p className="mt-1 text-xs text-text-muted">{c.cpuPercent.toFixed(1)}%</p>
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <div className="w-24">
+                      <div className="w-20">
                         <Meter percent={c.memPercent} />
-                        <p className="mt-1 text-xs text-text-muted">{c.memUsageMb} MB</p>
+                        <p className="mt-1 text-xs text-text-muted">{c.memUsageMb.toFixed(0)} MB</p>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-xs text-text-secondary">
+                    <td className="truncate px-5 py-3 text-xs text-text-secondary" title={c.ports.join(", ")}>
                       {c.ports.length ? c.ports.join(", ") : "—"}
                     </td>
                     <td className="px-5 py-3">

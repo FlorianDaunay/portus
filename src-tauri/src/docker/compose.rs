@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ComposeService {
     pub name: String,
     pub status: String,
@@ -12,6 +13,7 @@ pub struct ComposeService {
 }
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ComposeProject {
     pub name: String,
     pub config_path: String,

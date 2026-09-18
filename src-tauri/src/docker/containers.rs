@@ -2,15 +2,21 @@ use bollard::container::{
     ListContainersOptions, RemoveContainerOptions, RestartContainerOptions,
     StartContainerOptions, StopContainerOptions,
 };
+use bollard::secret::MountPointTypeEnum;
 use bollard::Docker;
+use futures_util::future::join_all;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::HashSet;
+
+use super::stats;
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct ContainerSummary {
     pub id: String,
     pub name: String,
     pub image: String,
+    pub image_id: String,
     pub status: String,
     pub status_text: String,
     pub ports: Vec<String>,
@@ -33,10 +39,47 @@ fn normalize_state(state: &str) -> String {
     .to_string()
 }
 
-pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
-    let mut filters: HashMap<String, Vec<String>> = HashMap::new();
-    filters.insert("status".into(), vec![]);
+/// Names of volumes currently mounted into at least one container.
+pub async fn volumes_in_use(docker: &Docker) -> Result<HashSet<String>, String> {
+    let containers = docker
+        .list_containers(Some(ListContainersOptions::<String> {
+            all: true,
+            ..Default::default()
+        }))
+        .await
+        .map_err(|e| e.to_string())?;
 
+    Ok(containers
+        .into_iter()
+        .flat_map(|c| c.mounts.unwrap_or_default())
+        .filter(|m| m.typ == Some(MountPointTypeEnum::VOLUME))
+        .filter_map(|m| m.name)
+        .collect())
+}
+
+/// Image references (both full IDs and repo:tag names) currently used by a container.
+pub async fn images_in_use(docker: &Docker) -> Result<HashSet<String>, String> {
+    let containers = docker
+        .list_containers(Some(ListContainersOptions::<String> {
+            all: true,
+            ..Default::default()
+        }))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut refs = HashSet::new();
+    for c in containers {
+        if let Some(image) = c.image {
+            refs.insert(image);
+        }
+        if let Some(image_id) = c.image_id {
+            refs.insert(image_id);
+        }
+    }
+    Ok(refs)
+}
+
+pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
     let options = ListContainersOptions::<String> {
         all: true,
         ..Default::default()
@@ -47,7 +90,7 @@ pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    Ok(containers
+    let mut summaries: Vec<ContainerSummary> = containers
         .into_iter()
         .map(|c| {
             let name = c
@@ -74,12 +117,14 @@ pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
                 id: c.id.clone().unwrap_or_default(),
                 name,
                 image: c.image.unwrap_or_default(),
+                image_id: c.image_id.unwrap_or_default(),
                 status: normalize_state(c.state.as_deref().unwrap_or("created")),
                 status_text: c.status.unwrap_or_default(),
                 ports,
                 created_at: c
                     .created
-                    .map(|ts| chrono::DateTime::from_timestamp(ts, 0).unwrap_or_default().to_rfc3339())
+                    .and_then(|ts| chrono::DateTime::from_timestamp(ts, 0))
+                    .map(|dt| dt.to_rfc3339())
                     .unwrap_or_default(),
                 project,
                 cpu_percent: 0.0,
@@ -88,7 +133,30 @@ pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
                 mem_limit_mb: 0.0,
             }
         })
-        .collect())
+        .collect();
+
+    let running_ids: Vec<String> = summaries
+        .iter()
+        .filter(|c| c.status == "running")
+        .map(|c| c.id.clone())
+        .collect();
+
+    let usages = join_all(running_ids.iter().map(|id| stats::usage(docker, id))).await;
+
+    for (id, usage) in running_ids.into_iter().zip(usages) {
+        if let Some(c) = summaries.iter_mut().find(|c| c.id == id) {
+            c.cpu_percent = usage.cpu_percent;
+            c.mem_usage_mb = usage.mem_usage_bytes as f64 / (1024.0 * 1024.0);
+            c.mem_limit_mb = usage.mem_limit_bytes as f64 / (1024.0 * 1024.0);
+            c.mem_percent = if usage.mem_limit_bytes > 0 {
+                (usage.mem_usage_bytes as f64 / usage.mem_limit_bytes as f64) * 100.0
+            } else {
+                0.0
+            };
+        }
+    }
+
+    Ok(summaries)
 }
 
 pub async fn start(docker: &Docker, id: &str) -> Result<(), String> {

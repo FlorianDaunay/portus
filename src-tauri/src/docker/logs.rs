@@ -5,6 +5,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 #[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct LogLine {
     pub container_id: String,
     pub container_name: String,
@@ -24,6 +25,33 @@ fn guess_level(message: &str) -> String {
     }
 }
 
+/// Docker prefixes each line with an RFC3339 timestamp when `timestamps: true`
+/// is set, separated from the message by the first space. Splits that out.
+fn split_timestamp(line: &str) -> (String, String) {
+    match line.split_once(' ') {
+        Some((ts, rest)) if chrono::DateTime::parse_from_rfc3339(ts).is_ok() => {
+            (ts.to_string(), rest.to_string())
+        }
+        _ => (chrono::Utc::now().to_rfc3339(), line.to_string()),
+    }
+}
+
+fn to_lines(container_id: &str, container_name: &str, raw: &str) -> Vec<LogLine> {
+    raw.lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let (timestamp, message) = split_timestamp(line);
+            LogLine {
+                container_id: container_id.to_string(),
+                container_name: container_name.to_string(),
+                level: guess_level(&message),
+                timestamp,
+                message,
+            }
+        })
+        .collect()
+}
+
 pub async fn recent(docker: &Docker, container_id: &str, container_name: &str) -> Vec<LogLine> {
     let options = LogsOptions::<String> {
         follow: false,
@@ -39,14 +67,7 @@ pub async fn recent(docker: &Docker, container_id: &str, container_name: &str) -
 
     while let Some(chunk) = stream.next().await {
         if let Ok(log_output) = chunk {
-            let message = log_output.to_string();
-            lines.push(LogLine {
-                container_id: container_id.to_string(),
-                container_name: container_name.to_string(),
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                level: guess_level(&message),
-                message,
-            });
+            lines.extend(to_lines(container_id, container_name, &log_output.to_string()));
         }
     }
 
@@ -73,15 +94,9 @@ pub async fn stream_to_frontend(
     while let Some(chunk) = stream.next().await {
         match chunk {
             Ok(log_output) => {
-                let message = log_output.to_string();
-                let line = LogLine {
-                    container_id: container_id.clone(),
-                    container_name: container_name.clone(),
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    level: guess_level(&message),
-                    message,
-                };
-                let _ = app.emit("container-log", &line);
+                for line in to_lines(&container_id, &container_name, &log_output.to_string()) {
+                    let _ = app.emit("container-log", &line);
+                }
             }
             Err(e) => {
                 let _ = app.emit("container-log-error", e.to_string());

@@ -90,8 +90,8 @@ export function ContainerDetail() {
         <Card className="overflow-hidden">
           <div className="max-h-[50vh] overflow-y-auto p-4 font-mono text-xs leading-relaxed">
             {containerLogs.length === 0 && <p className="text-text-muted">No recent log lines for this container.</p>}
-            {containerLogs.map((line) => (
-              <div key={line.id} className="flex gap-3 py-0.5">
+            {containerLogs.map((line, i) => (
+              <div key={`${line.timestamp}-${i}`} className="flex gap-3 py-0.5">
                 <span className="shrink-0 text-text-muted">{new Date(line.timestamp).toLocaleTimeString()}</span>
                 <span className="whitespace-pre-wrap text-text-secondary">{line.message}</span>
               </div>

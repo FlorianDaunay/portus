@@ -3,6 +3,7 @@ pub mod images;
 pub mod volumes;
 pub mod compose;
 pub mod logs;
+pub mod stats;
 
 use bollard::Docker;
 

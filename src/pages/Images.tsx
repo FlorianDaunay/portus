@@ -5,13 +5,14 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ConnectionError } from "@/components/ui/ConnectionError";
 import { listImages, removeImage } from "@/lib/api";
 import { formatBytes, timeAgo } from "@/lib/utils";
 
 export function Images() {
   const [query, setQuery] = useState("");
   const queryClient = useQueryClient();
-  const { data: images } = useQuery({ queryKey: ["images"], queryFn: listImages });
+  const { data: images, isError, error } = useQuery({ queryKey: ["images"], queryFn: listImages });
   const removeMutation = useMutation({
     mutationFn: removeImage,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["images"] }),
@@ -34,25 +35,29 @@ export function Images() {
       </div>
 
       <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
+        {isError ? (
+          <ConnectionError error={error} />
+        ) : filtered.length === 0 ? (
           <EmptyState icon={Layers} title="No images found" />
         ) : (
-          <table className="w-full text-left text-sm">
+          <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="px-5 py-3 font-medium">Repository:Tag</th>
-                <th className="px-5 py-3 font-medium">Size</th>
-                <th className="px-5 py-3 font-medium">Created</th>
-                <th className="px-5 py-3 font-medium">In use</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <th className="w-[42%] px-5 py-3 font-medium">Repository:Tag</th>
+                <th className="w-[13%] px-5 py-3 font-medium">Size</th>
+                <th className="w-[15%] px-5 py-3 font-medium">Created</th>
+                <th className="w-[15%] px-5 py-3 font-medium">In use</th>
+                <th className="w-[15%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((img) => (
                 <tr key={img.id} className="transition-colors hover:bg-surface-hover">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-text-primary">{img.repoTag}</p>
-                    <p className="text-xs text-text-muted">{img.id.slice(0, 19)}</p>
+                  <td className="truncate px-5 py-3">
+                    <p className="truncate font-medium text-text-primary" title={img.repoTag}>
+                      {img.repoTag}
+                    </p>
+                    <p className="truncate text-xs text-text-muted">{img.id.slice(0, 19)}</p>
                   </td>
                   <td className="px-5 py-3 text-text-secondary">{formatBytes(img.sizeMb)}</td>
                   <td className="px-5 py-3 text-text-secondary">{timeAgo(img.createdAt)}</td>
