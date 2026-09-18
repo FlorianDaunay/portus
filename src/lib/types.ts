@@ -52,8 +52,29 @@ export interface LogLine {
   message: string;
 }
 
+export type EngineState =
+  | "ready"
+  | "stopped"
+  | "notInstalled"
+  | "wslUnavailable"
+  | "unsupported"
+  | "error";
+
+export interface EngineStatus {
+  state: EngineState;
+  distro?: string;
+  message: string;
+  logs: string[];
+}
+
+export interface Settings {
+  stopEngineOnExit: boolean;
+  engineDistro?: string;
+}
+
 export interface DaemonInfo {
   connected: boolean;
+  managed: boolean;
   version: string;
   containersRunning: number;
   containersStopped: number;

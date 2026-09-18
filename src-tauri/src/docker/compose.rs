@@ -54,12 +54,15 @@ pub async fn list(docker: &Docker) -> Result<Vec<ComposeProject>, String> {
         }
         .to_string();
 
-        let ports = c
-            .ports
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|p| p.public_port.map(|pub_port| format!("{}:{}", pub_port, p.private_port)))
-            .collect();
+        let mut ports: Vec<String> = Vec::new();
+        for p in c.ports.unwrap_or_default() {
+            if let Some(public) = p.public_port {
+                let mapping = format!("{}:{}", public, p.private_port);
+                if !ports.contains(&mapping) {
+                    ports.push(mapping);
+                }
+            }
+        }
 
         let entry = projects.entry(project).or_insert_with(|| (config_path, vec![]));
         entry.1.push(ComposeService {

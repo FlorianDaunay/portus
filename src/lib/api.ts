@@ -2,8 +2,10 @@ import type {
   ComposeProject,
   ContainerSummary,
   DaemonInfo,
+  EngineStatus,
   ImageSummary,
   LogLine,
+  Settings,
   VolumeSummary,
 } from "./types";
 
@@ -15,6 +17,36 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
   }
   const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
   return tauriInvoke<T>(cmd, args);
+}
+
+export async function getEngineStatus(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("get_engine_status");
+}
+
+export async function startEngine(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("start_engine");
+}
+
+export async function installEngine(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("install_engine");
+}
+
+export async function stopEngine(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("stop_engine");
+}
+
+export async function getSettings(): Promise<Settings> {
+  return invoke<Settings>("get_settings");
+}
+
+export async function setStopEngineOnExit(value: boolean): Promise<Settings> {
+  return invoke<Settings>("set_stop_engine_on_exit", { value });
+}
+
+export async function onEngineLog(callback: (line: string) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string>("engine-log", (event) => callback(event.payload));
 }
 
 export async function getDaemonInfo(): Promise<DaemonInfo> {

@@ -14,7 +14,8 @@ export function Volumes() {
   const { data: volumes, isError, error } = useQuery({ queryKey: ["volumes"], queryFn: listVolumes });
   const removeMutation = useMutation({
     mutationFn: removeVolume,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["volumes"] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["volumes"] }),
+    meta: { label: "Remove volume" },
   });
 
   const filtered = useMemo(() => {

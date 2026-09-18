@@ -1,12 +1,59 @@
-import { useQuery } from "@tanstack/react-query";
-import { Boxes, Layers, HardDrive, Database } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Boxes, Layers, HardDrive, Database, Power } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
+import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { ConnectionError } from "@/components/ui/ConnectionError";
-import { getDaemonInfo, listContainers } from "@/lib/api";
+import { getDaemonInfo, getSettings, listContainers, setStopEngineOnExit, stopEngine } from "@/lib/api";
+import { setEngineAutoStartSuppressed } from "@/lib/engineFlags";
 import { formatBytes } from "@/lib/utils";
 import { Link } from "react-router-dom";
+
+function EngineControls() {
+  const queryClient = useQueryClient();
+  const { data: settings } = useQuery({ queryKey: ["settings"], queryFn: getSettings });
+
+  const toggle = useMutation({
+    mutationFn: setStopEngineOnExit,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["settings"] }),
+    meta: { label: "Save setting" },
+  });
+  const stop = useMutation({
+    mutationFn: stopEngine,
+    onSuccess: () => setEngineAutoStartSuppressed(true),
+    onSettled: () => queryClient.invalidateQueries(),
+    meta: { label: "Stop Docker" },
+  });
+
+  const onStop = () => {
+    if (window.confirm("Stop Docker? Every running container will be stopped.")) stop.mutate();
+  };
+
+  return (
+    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5">
+      <p className="text-xs text-text-muted">
+        This Docker Engine runs in WSL and is managed by Portus. It keeps running, with its containers, when Portus closes.
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-[rgb(var(--color-accent))]"
+            checked={settings?.stopEngineOnExit ?? false}
+            disabled={!settings || toggle.isPending}
+            onChange={(e) => toggle.mutate(e.target.checked)}
+          />
+          Stop Docker when Portus closes
+        </label>
+        <Button variant="danger" onClick={onStop} disabled={stop.isPending}>
+          <Power size={14} />
+          {stop.isPending ? "Stopping..." : "Stop Docker"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { data: info } = useQuery({ queryKey: ["daemon-info"], queryFn: getDaemonInfo, refetchInterval: 5000 });
@@ -84,6 +131,7 @@ export function Dashboard() {
                   <dd className="font-medium">{info?.version || "—"}</dd>
                 </div>
               </dl>
+              {info?.managed && <EngineControls />}
             </CardContent>
           </Card>
         </>

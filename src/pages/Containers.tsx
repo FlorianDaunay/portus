@@ -20,11 +20,14 @@ export function Containers() {
     error,
   } = useQuery({ queryKey: ["containers"], queryFn: listContainers, refetchInterval: 5000 });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["containers"] });
-  const startMutation = useMutation({ mutationFn: startContainer, onSuccess: invalidate });
-  const stopMutation = useMutation({ mutationFn: stopContainer, onSuccess: invalidate });
-  const restartMutation = useMutation({ mutationFn: restartContainer, onSuccess: invalidate });
-  const removeMutation = useMutation({ mutationFn: removeContainer, onSuccess: invalidate });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["containers"] });
+    queryClient.invalidateQueries({ queryKey: ["daemon-info"] });
+  };
+  const startMutation = useMutation({ mutationFn: startContainer, onSettled: invalidate, meta: { label: "Start container" } });
+  const stopMutation = useMutation({ mutationFn: stopContainer, onSettled: invalidate, meta: { label: "Stop container" } });
+  const restartMutation = useMutation({ mutationFn: restartContainer, onSettled: invalidate, meta: { label: "Restart container" } });
+  const removeMutation = useMutation({ mutationFn: removeContainer, onSettled: invalidate, meta: { label: "Remove container" } });
 
   const filtered = useMemo(() => {
     const list = containers ?? [];

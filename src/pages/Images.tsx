@@ -15,7 +15,11 @@ export function Images() {
   const { data: images, isError, error } = useQuery({ queryKey: ["images"], queryFn: listImages });
   const removeMutation = useMutation({
     mutationFn: removeImage,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["images"] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["images"] });
+      queryClient.invalidateQueries({ queryKey: ["daemon-info"] });
+    },
+    meta: { label: "Remove image" },
   });
 
   const filtered = useMemo(() => {

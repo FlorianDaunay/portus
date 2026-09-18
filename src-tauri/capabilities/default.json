@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions for the main Portus window (core events are needed for engine/log streaming).",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

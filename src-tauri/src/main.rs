@@ -2,10 +2,20 @@
 
 mod commands;
 mod docker;
+mod settings;
+
+use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
+        .manage(docker::engine::EngineManager::default())
         .invoke_handler(tauri::generate_handler![
+            commands::get_engine_status,
+            commands::start_engine,
+            commands::stop_engine,
+            commands::install_engine,
+            commands::get_settings,
+            commands::set_stop_engine_on_exit,
             commands::get_daemon_info,
             commands::list_containers,
             commands::start_container,
@@ -20,6 +30,11 @@ fn main() {
             commands::list_recent_logs,
             commands::stream_container_logs,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running portus");
+        .build(tauri::generate_context!())
+        .expect("error while building portus")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                app.state::<docker::engine::EngineManager>().shutdown();
+            }
+        });
 }

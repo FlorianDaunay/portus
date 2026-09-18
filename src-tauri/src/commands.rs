@@ -1,8 +1,10 @@
 use crate::docker;
 use crate::docker::compose::ComposeProject;
 use crate::docker::containers::ContainerSummary;
+use crate::docker::engine::{EngineManager, EngineStatus};
 use crate::docker::images::ImageSummary;
 use crate::docker::volumes::VolumeSummary;
+use crate::settings::{self, Settings};
 use serde::Serialize;
 use tauri::AppHandle;
 
@@ -10,6 +12,7 @@ use tauri::AppHandle;
 #[serde(rename_all = "camelCase")]
 pub struct DaemonInfo {
     pub connected: bool,
+    pub managed: bool,
     pub version: String,
     pub containers_running: usize,
     pub containers_stopped: usize,
@@ -21,6 +24,7 @@ impl DaemonInfo {
     fn disconnected() -> Self {
         DaemonInfo {
             connected: false,
+            managed: false,
             version: String::new(),
             containers_running: 0,
             containers_stopped: 0,
@@ -31,7 +35,51 @@ impl DaemonInfo {
 }
 
 #[tauri::command]
+pub fn get_settings() -> Settings {
+    settings::load()
+}
+
+#[tauri::command]
+pub fn set_stop_engine_on_exit(value: bool) -> Result<Settings, String> {
+    settings::update(|s| s.stop_engine_on_exit = value)
+}
+
+#[tauri::command]
+pub async fn stop_engine(
+    mgr: tauri::State<'_, EngineManager>,
+) -> Result<EngineStatus, String> {
+    Ok(docker::engine::stop(&mgr).await)
+}
+
+
+#[tauri::command]
+pub async fn get_engine_status(
+    mgr: tauri::State<'_, EngineManager>,
+) -> Result<EngineStatus, String> {
+    Ok(docker::engine::status(&mgr).await)
+}
+
+#[tauri::command]
+pub async fn start_engine(
+    app: AppHandle,
+    mgr: tauri::State<'_, EngineManager>,
+) -> Result<EngineStatus, String> {
+    Ok(docker::engine::start(&app, &mgr).await)
+}
+
+#[tauri::command]
+pub async fn install_engine(
+    app: AppHandle,
+    mgr: tauri::State<'_, EngineManager>,
+) -> Result<EngineStatus, String> {
+    Ok(docker::engine::install(&app, &mgr).await)
+}
+
+#[tauri::command]
 pub async fn get_daemon_info() -> Result<DaemonInfo, String> {
+    if !docker::engine::detect().await {
+        return Ok(DaemonInfo::disconnected());
+    }
     let Ok(docker) = docker::connect() else {
         return Ok(DaemonInfo::disconnected());
     };
@@ -49,6 +97,7 @@ pub async fn get_daemon_info() -> Result<DaemonInfo, String> {
 
     Ok(DaemonInfo {
         connected: true,
+        managed: docker::engine::is_managed(),
         version: version.version.unwrap_or_default(),
         containers_running: running,
         containers_stopped: stopped,
