@@ -1,13 +1,11 @@
-import { Moon, Sun, Wifi, WifiOff } from "lucide-react";
+import { Wifi, WifiOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { Button } from "@/components/ui/Button";
-import { useThemeStore } from "@/lib/theme";
+import { ThemePicker } from "@/components/theme/ThemePicker";
 import { getDaemonInfo } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function TopBar() {
-  const { theme, toggle } = useThemeStore();
   const { data } = useQuery({ queryKey: ["daemon-info"], queryFn: getDaemonInfo, refetchInterval: 5000 });
   const connected = data?.connected ?? false;
 
@@ -17,16 +15,14 @@ export function TopBar() {
       <div className="flex-1" />
       <div
         className={cn(
-          "flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium",
+          "flex items-center gap-1.5 rounded-pill border border-border px-2.5 py-1 text-xs font-medium",
           connected ? "text-success" : "text-danger"
         )}
       >
         {connected ? <Wifi size={13} /> : <WifiOff size={13} />}
         {connected ? `Docker ${data?.version ?? ""}` : "Disconnected"}
       </div>
-      <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-      </Button>
+      <ThemePicker />
     </header>
   );
 }

@@ -15,7 +15,7 @@ export function Toaster() {
           key={t.id}
           role={t.kind === "error" ? "alert" : "status"}
           className={cn(
-            "pointer-events-auto flex animate-fade-in items-start gap-3 rounded-xl border bg-surface p-4 shadow-panel",
+            "pointer-events-auto flex animate-fade-in items-start gap-3 rounded-tile border bg-surface p-4 shadow-overlay",
             t.kind === "error" ? "border-danger/40" : "border-success/40"
           )}
         >
@@ -31,7 +31,7 @@ export function Toaster() {
           <button
             onClick={() => dismiss(t.id)}
             aria-label="Dismiss notification"
-            className="shrink-0 rounded p-0.5 text-text-muted hover:bg-surface-hover hover:text-text-primary"
+            className="shrink-0 rounded-control p-0.5 text-text-muted hover:bg-surface-hover hover:text-text-primary"
           >
             <X size={14} />
           </button>

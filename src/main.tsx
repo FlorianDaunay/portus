@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+// Applies the saved theme to the document; keep it before anything renders.
+import "@/themes";
 import { App } from "./App";
 import { Toaster } from "@/components/ui/Toaster";
 import { toast } from "@/lib/toast";

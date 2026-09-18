@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Layers, HardDrive, Database, Power } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { ConnectionError } from "@/components/ui/ConnectionError";
@@ -37,12 +38,11 @@ function EngineControls() {
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-[rgb(var(--color-accent))]"
+          <Switch
             checked={settings?.stopEngineOnExit ?? false}
             disabled={!settings || toggle.isPending}
-            onChange={(e) => toggle.mutate(e.target.checked)}
+            onCheckedChange={(value) => toggle.mutate(value)}
+            aria-label="Stop Docker when Portus closes"
           />
           Stop Docker when Portus closes
         </label>

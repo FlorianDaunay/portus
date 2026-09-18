@@ -103,7 +103,7 @@ export function ContainerDetail() {
       {tab === "Inspect" && (
         <Card>
           <CardContent className="pt-5">
-            <pre className="overflow-x-auto rounded-lg bg-surface-hover p-4 font-mono text-xs text-text-secondary">
+            <pre className="overflow-x-auto rounded-control bg-surface-hover p-4 font-mono text-xs text-text-secondary">
               {JSON.stringify(container, null, 2)}
             </pre>
           </CardContent>

@@ -22,7 +22,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-control bg-accent text-accent-foreground">
           <Boxes size={16} strokeWidth={2.5} />
         </div>
         <span className="text-base font-semibold tracking-tight">Portus</span>
@@ -35,7 +35,7 @@ export function Sidebar() {
             end={end}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-2.5 rounded-control px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-accent/10 text-accent"
                   : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"

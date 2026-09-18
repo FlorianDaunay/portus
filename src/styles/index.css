@@ -2,35 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --color-canvas: 250 250 251;
-  --color-surface: 255 255 255;
-  --color-surface-hover: 244 245 247;
-  --color-border: 228 229 233;
-  --color-text-primary: 23 23 28;
-  --color-text-secondary: 82 84 94;
-  --color-text-muted: 141 143 153;
-  --color-accent: 79 70 229;
-  --color-accent-hover: 67 56 202;
-  --color-success: 22 163 74;
-  --color-warning: 202 138 4;
-  --color-danger: 220 38 38;
-}
-
-.dark {
-  --color-canvas: 13 14 18;
-  --color-surface: 20 21 27;
-  --color-surface-hover: 27 29 36;
-  --color-border: 37 39 48;
-  --color-text-primary: 237 237 240;
-  --color-text-secondary: 165 167 178;
-  --color-text-muted: 104 106 119;
-  --color-accent: 129 140 248;
-  --color-accent-hover: 165 175 250;
-  --color-success: 74 222 128;
-  --color-warning: 250 204 21;
-  --color-danger: 248 113 113;
-}
+/* Theme variables (colors, radii, shadows, fonts, border width) are set at runtime from
+   src/themes; nothing theme-specific belongs in this file. */
 
 * {
   border-color: rgb(var(--color-border));
@@ -49,7 +22,7 @@ body {
 }
 ::-webkit-scrollbar-thumb {
   background: rgb(var(--color-border));
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--color-text-muted));

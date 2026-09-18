@@ -1,48 +1,14 @@
 import type { Config } from "tailwindcss";
+import { tailwindThemeExtension } from "./src/themes/tailwind";
 
 export default {
-  darkMode: "class",
+  // `dark:` variants follow the active theme's scheme (set by applyTheme on <html>).
+  darkMode: ["selector", '[data-scheme="dark"]'],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      fontFamily: {
-        sans: [
-          "Inter",
-          "-apple-system",
-          "BlinkMacSystemFont",
-          "Segoe UI",
-          "sans-serif",
-        ],
-        mono: [
-          "JetBrains Mono",
-          "SFMono-Regular",
-          "Menlo",
-          "Consolas",
-          "monospace",
-        ],
-      },
-      colors: {
-        canvas: "rgb(var(--color-canvas) / <alpha-value>)",
-        surface: "rgb(var(--color-surface) / <alpha-value>)",
-        "surface-hover": "rgb(var(--color-surface-hover) / <alpha-value>)",
-        border: "rgb(var(--color-border) / <alpha-value>)",
-        "text-primary": "rgb(var(--color-text-primary) / <alpha-value>)",
-        "text-secondary": "rgb(var(--color-text-secondary) / <alpha-value>)",
-        "text-muted": "rgb(var(--color-text-muted) / <alpha-value>)",
-        accent: "rgb(var(--color-accent) / <alpha-value>)",
-        "accent-hover": "rgb(var(--color-accent-hover) / <alpha-value>)",
-        success: "rgb(var(--color-success) / <alpha-value>)",
-        warning: "rgb(var(--color-warning) / <alpha-value>)",
-        danger: "rgb(var(--color-danger) / <alpha-value>)",
-      },
-      borderRadius: {
-        xl: "0.875rem",
-        "2xl": "1.125rem",
-      },
-      boxShadow: {
-        soft: "0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.06)",
-        panel: "0 4px 24px -4px rgb(0 0 0 / 0.12)",
-      },
+      // Colors, radii, shadows, fonts and border width all come from the theme tokens.
+      ...tailwindThemeExtension(),
       keyframes: {
         "fade-in": {
           from: { opacity: "0", transform: "translateY(4px)" },

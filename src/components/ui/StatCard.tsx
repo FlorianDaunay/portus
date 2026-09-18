@@ -19,7 +19,7 @@ const toneMap: Record<NonNullable<StatCardProps["tone"]>, string> = {
 export function StatCard({ label, value, icon: Icon, tone = "default" }: StatCardProps) {
   return (
     <Card className="flex items-center gap-4 px-5 py-4">
-      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", toneMap[tone])}>
+      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-tile", toneMap[tone])}>
         <Icon size={18} strokeWidth={2} />
       </div>
       <div className="min-w-0">
