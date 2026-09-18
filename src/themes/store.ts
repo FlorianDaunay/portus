@@ -50,11 +50,10 @@ export const useThemeStore = create<AppearanceState>()(
       darkId: DEFAULT_THEME_IDS.dark,
       systemDark,
 
+      // Picking a theme is an explicit choice: it applies right away and stops following the system.
       selectTheme: (id) => {
-        const theme = findTheme(id);
-        if (!theme) return;
-        if (get().followSystem) set(theme.scheme === "dark" ? { darkId: id } : { lightId: id });
-        else set({ themeId: id });
+        if (!findTheme(id)) return;
+        set({ themeId: id, followSystem: false });
       },
 
       setFollowSystem: (follow) => {

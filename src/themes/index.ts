@@ -1,4 +1,4 @@
-export { themes, themesByScheme, findTheme } from "./registry";
+export { themes, findTheme } from "./registry";
 export { useThemeStore, useActiveTheme, resolveTheme } from "./store";
 export { themeToStyle } from "./css";
 export { defineTheme } from "./define";

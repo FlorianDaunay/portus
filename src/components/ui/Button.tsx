@@ -23,7 +23,7 @@ export function Button({ className, variant = "secondary", size = "sm", ...props
   return (
     <button
       className={cn(
-        "inline-flex items-center rounded-control font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none",
+        "inline-flex items-center rounded-control font-medium shadow-control transition-colors active:shadow-inset disabled:opacity-40 disabled:pointer-events-none",
         variants[variant],
         sizes[size],
         className

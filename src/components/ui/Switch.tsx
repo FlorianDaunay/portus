@@ -8,6 +8,7 @@ interface SwitchProps {
   "aria-labelledby"?: string;
 }
 
+/** The knob travels exactly its own width, so the switch stays correct at any theme density. */
 export function Switch({ checked, onCheckedChange, disabled, ...aria }: SwitchProps) {
   return (
     <button
@@ -17,8 +18,7 @@ export function Switch({ checked, onCheckedChange, disabled, ...aria }: SwitchPr
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-pill transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40",
+        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-pill p-0.5 transition-colors disabled:opacity-40",
         checked ? "bg-accent" : "bg-border"
       )}
       {...aria}
@@ -26,7 +26,7 @@ export function Switch({ checked, onCheckedChange, disabled, ...aria }: SwitchPr
       <span
         className={cn(
           "h-4 w-4 rounded-pill transition-transform",
-          checked ? "translate-x-[18px] bg-accent-foreground" : "translate-x-0.5 bg-text-muted"
+          checked ? "translate-x-full bg-accent-foreground" : "translate-x-0 bg-text-muted"
         )}
       />
     </button>

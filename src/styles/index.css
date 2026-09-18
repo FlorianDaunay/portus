@@ -2,15 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme variables (colors, radii, shadows, fonts, border width) are set at runtime from
-   src/themes; nothing theme-specific belongs in this file. */
+/* Everything theme-specific (colors, radii, shadows, fonts, border width/style, density,
+   focus outline, effects) is set at runtime from src/themes; nothing belongs here except the
+   rules that turn those variables into behavior. */
 
-* {
-  border-color: rgb(var(--color-border));
+@layer base {
+  /* Border style and color are theme tokens; Tailwind's preflight hard-codes `solid`. */
+  *,
+  ::before,
+  ::after {
+    border-style: var(--border-style);
+    border-color: rgb(var(--color-border) / var(--alpha-border));
+  }
+
+  :focus-visible {
+    outline: var(--focus-width) solid rgb(var(--color-accent));
+    outline-offset: var(--focus-offset);
+  }
+
+  body {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    background-image: var(--effect-canvas-image);
+    background-attachment: fixed;
+    background-size: cover;
+  }
 }
 
-body {
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+@layer components {
+  /* Frosted glass: a theme may blur what is behind every surface. */
+  .bg-surface {
+    -webkit-backdrop-filter: var(--effect-surface-backdrop);
+    backdrop-filter: var(--effect-surface-backdrop);
+  }
+
+  /* For floating panels (popovers, toasts): the surface color laid over an opaque canvas, so that
+     whatever is behind never shows through, even when the theme's surface is translucent. */
+  .bg-surface-solid {
+    background-color: rgb(var(--color-canvas));
+    background-image: linear-gradient(
+      rgb(var(--color-surface) / var(--alpha-surface)),
+      rgb(var(--color-surface) / var(--alpha-surface))
+    );
+  }
 }
 
 ::-webkit-scrollbar {
@@ -21,9 +54,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--color-border));
+  background: rgb(var(--color-border) / var(--alpha-border));
   border-radius: var(--radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--color-text-muted));
+  background: rgb(var(--color-text-muted) / var(--alpha-text-muted));
 }

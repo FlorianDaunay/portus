@@ -10,7 +10,9 @@ export function TopBar() {
   const connected = data?.connected ?? false;
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-6">
+    // z-30 keeps the header (and the theme picker it holds) above the page: glass surfaces create
+    // their own stacking contexts, which would otherwise paint over the open picker.
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-4 border-b border-border bg-surface px-6">
       <SearchInput placeholder="Search containers, images, volumes..." className="max-w-sm" />
       <div className="flex-1" />
       <div

@@ -39,7 +39,7 @@ export function Logs() {
           <select
             value={containerFilter}
             onChange={(e) => setContainerFilter(e.target.value)}
-            className="h-9 rounded-control border border-border bg-surface px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="h-9 rounded-control border border-border bg-surface px-3 text-sm text-text-primary shadow-inset"
           >
             <option value="all">All containers</option>
             {(containers ?? []).map((c) => (

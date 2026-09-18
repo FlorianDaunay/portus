@@ -15,7 +15,7 @@ export function Toaster() {
           key={t.id}
           role={t.kind === "error" ? "alert" : "status"}
           className={cn(
-            "pointer-events-auto flex animate-fade-in items-start gap-3 rounded-tile border bg-surface p-4 shadow-overlay",
+            "pointer-events-auto flex animate-fade-in items-start gap-3 rounded-tile border bg-surface-solid p-4 shadow-overlay",
             t.kind === "error" ? "border-danger/40" : "border-success/40"
           )}
         >

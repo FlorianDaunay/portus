@@ -1,10 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, Moon, Palette, Sun } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { Switch } from "@/components/ui/Switch";
 import { ThemePreview } from "./ThemePreview";
 import { cn } from "@/lib/utils";
-import { themesByScheme, useActiveTheme, useThemeStore, type Theme, type ThemeScheme } from "@/themes";
+import { themes, useActiveTheme, useThemeStore, type Theme, type ThemeScheme } from "@/themes";
 
 function ThemeCard({ theme, selected, onSelect }: { theme: Theme; selected: boolean; onSelect: () => void }) {
   return (
@@ -15,7 +16,6 @@ function ThemeCard({ theme, selected, onSelect }: { theme: Theme; selected: bool
       onClick={onSelect}
       className={cn(
         "flex flex-col gap-2 rounded-tile p-1.5 text-left transition-colors hover:bg-surface-hover",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         selected && "bg-surface-hover ring-2 ring-accent"
       )}
     >
@@ -33,8 +33,17 @@ function ThemeCard({ theme, selected, onSelect }: { theme: Theme; selected: bool
   );
 }
 
-function ThemeGroup({ scheme, selectedIds, onSelect }: { scheme: ThemeScheme; selectedIds: string[]; onSelect: (id: string) => void }) {
-  const items = themesByScheme(scheme);
+function ThemeGroup({
+  scheme,
+  items,
+  selectedIds,
+  onSelect,
+}: {
+  scheme: ThemeScheme;
+  items: Theme[];
+  selectedIds: string[];
+  onSelect: (id: string) => void;
+}) {
   if (items.length === 0) return null;
   const Icon = scheme === "light" ? Sun : Moon;
 
@@ -56,6 +65,7 @@ function ThemeGroup({ scheme, selectedIds, onSelect }: { scheme: ThemeScheme; se
 
 export function ThemePicker() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const active = useActiveTheme();
@@ -65,6 +75,12 @@ export function ThemePicker() {
   const setFollowSystem = useThemeStore((s) => s.setFollowSystem);
   const selectTheme = useThemeStore((s) => s.selectTheme);
   const selectedIds = followSystem ? [lightId, darkId] : [active.id];
+
+  const matching = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return themes;
+    return themes.filter((t) => `${t.name} ${t.description} ${t.id}`.toLowerCase().includes(q));
+  }, [query]);
 
   useEffect(() => {
     if (!open) return;
@@ -93,7 +109,7 @@ export function ThemePicker() {
         <div
           role="dialog"
           aria-labelledby={titleId}
-          className="absolute right-0 top-full z-40 mt-2 w-[36rem] max-w-[calc(100vw-2rem)] animate-fade-in rounded-card border bg-surface shadow-overlay"
+          className="absolute right-0 top-full z-40 mt-2 w-[36rem] max-w-[calc(100vw-2rem)] animate-fade-in rounded-card border bg-surface-solid shadow-overlay"
         >
           <div className="flex items-center justify-between gap-4 border-b px-5 py-4">
             <div>
@@ -102,7 +118,7 @@ export function ThemePicker() {
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
                 {followSystem
-                  ? "Following your system: your picks apply to its light and dark modes."
+                  ? "Following your system's light or dark mode. Picking a theme turns this off."
                   : "Pick a theme for the whole app."}
               </p>
             </div>
@@ -111,9 +127,19 @@ export function ThemePicker() {
               <Switch checked={followSystem} onCheckedChange={setFollowSystem} aria-label="Match system appearance" />
             </label>
           </div>
-          <div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto p-3.5">
-            <ThemeGroup scheme="light" selectedIds={selectedIds} onSelect={selectTheme} />
-            <ThemeGroup scheme="dark" selectedIds={selectedIds} onSelect={selectTheme} />
+          <div className="border-b px-3.5 py-3">
+            <SearchInput
+              placeholder={`Search ${themes.length} themes...`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+              aria-label="Search themes"
+            />
+          </div>
+          <div className="flex max-h-[60vh] flex-col gap-5 overflow-y-auto p-3.5">
+            {matching.length === 0 && <p className="py-8 text-center text-sm text-text-muted">No theme matches "{query}".</p>}
+            <ThemeGroup scheme="light" items={matching.filter((t) => t.scheme === "light")} selectedIds={selectedIds} onSelect={selectTheme} />
+            <ThemeGroup scheme="dark" items={matching.filter((t) => t.scheme === "dark")} selectedIds={selectedIds} onSelect={selectTheme} />
           </div>
         </div>
       )}
