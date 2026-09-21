@@ -1,15 +1,30 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { HardDrive, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConnectionError } from "@/components/ui/ConnectionError";
+import { SortableTh } from "@/components/ui/SortableTh";
 import { listVolumes, removeVolume } from "@/lib/api";
+import { useSort } from "@/lib/sort";
+import type { VolumeSummary } from "@/lib/types";
+
+const columns = {
+  name: (v: VolumeSummary) => v.name,
+  driver: (v: VolumeSummary) => v.driver,
+  mountpoint: (v: VolumeSummary) => v.mountpoint,
+  inUse: (v: VolumeSummary) => Number(v.inUse),
+};
+
+/** Default order: volumes in use on top, the rest keeps Docker's order. */
+const inUseFirst = (a: VolumeSummary, b: VolumeSummary) => Number(b.inUse) - Number(a.inUse);
 
 export function Volumes() {
   const [query, setQuery] = useState("");
+  const { sort, toggle, sortRows } = useSort(columns, inUseFirst);
   const queryClient = useQueryClient();
   const { data: volumes, isError, error } = useQuery({ queryKey: ["volumes"], queryFn: listVolumes });
   const removeMutation = useMutation({
@@ -20,9 +35,9 @@ export function Volumes() {
 
   const filtered = useMemo(() => {
     const list = volumes ?? [];
-    if (!query.trim()) return list;
-    return list.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()));
-  }, [volumes, query]);
+    if (!query.trim()) return sortRows(list);
+    return sortRows(list.filter((v) => v.name.toLowerCase().includes(query.toLowerCase())));
+  }, [volumes, query, sortRows]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,10 +58,10 @@ export function Volumes() {
           <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="w-[22%] px-5 py-3 font-medium">Name</th>
-                <th className="w-[10%] px-5 py-3 font-medium">Driver</th>
-                <th className="w-[46%] px-5 py-3 font-medium">Mountpoint</th>
-                <th className="w-[12%] px-5 py-3 font-medium">In use</th>
+                <SortableTh label="Name" column="name" sort={sort} onSort={toggle} className="w-[22%]" />
+                <SortableTh label="Driver" column="driver" sort={sort} onSort={toggle} className="w-[10%]" />
+                <SortableTh label="Mountpoint" column="mountpoint" sort={sort} onSort={toggle} className="w-[46%]" />
+                <SortableTh label="In use" column="inUse" sort={sort} onSort={toggle} className="w-[12%]" />
                 <th className="w-[10%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
@@ -54,9 +69,13 @@ export function Volumes() {
               {filtered.map((v) => (
                 <tr key={v.name} className="transition-colors hover:bg-surface-hover">
                   <td className="truncate px-5 py-3">
-                    <p className="truncate font-medium text-text-primary" title={v.name}>
+                    <Link
+                      to={`/volumes/${encodeURIComponent(v.name)}`}
+                      className="block truncate font-medium text-text-primary hover:text-accent hover:underline"
+                      title={v.name}
+                    >
                       {v.name}
-                    </p>
+                    </Link>
                   </td>
                   <td className="px-5 py-3 text-text-secondary">{v.driver}</td>
                   <td className="truncate px-5 py-3 text-xs text-text-muted" title={v.mountpoint}>

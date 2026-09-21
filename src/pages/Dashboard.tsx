@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Layers, HardDrive, Database, Power } from "lucide-react";
+import { Boxes, Layers, HardDrive, Database, Power, Cpu, MemoryStick } from "lucide-react";
 import { StatCard } from "@/components/ui/StatCard";
+import { UsageChart } from "@/components/ui/UsageChart";
 import { Button } from "@/components/ui/Button";
 import { Switch } from "@/components/ui/Switch";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -8,6 +10,7 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { ConnectionError } from "@/components/ui/ConnectionError";
 import { getDaemonInfo, getSettings, listContainers, setStopEngineOnExit, stopEngine } from "@/lib/api";
 import { setEngineAutoStartSuppressed } from "@/lib/engineFlags";
+import { HISTORY_MS, useMetrics } from "@/lib/metrics";
 import { formatBytes } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -65,6 +68,19 @@ export function Dashboard() {
 
   const recent = (containers ?? []).slice(0, 5);
 
+  const samples = useMetrics((s) => s.samples);
+  const cpuPoints = useMemo(() => samples.map((s) => ({ t: s.t, value: s.cpu })), [samples]);
+  const memPoints = useMemo(
+    () =>
+      samples.map((s) => ({
+        t: s.t,
+        value: s.mem,
+        note: `${formatBytes(s.memUsedMb)} of ${formatBytes(s.memTotalMb)}`,
+      })),
+    [samples]
+  );
+  const memPercent = info && info.memTotalMb > 0 ? (info.memUsedMb / info.memTotalMb) * 100 : 0;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -78,7 +94,7 @@ export function Dashboard() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <StatCard label="Running" value={String(info?.containersRunning ?? "—")} icon={Boxes} tone="success" />
             <StatCard label="Stopped" value={String(info?.containersStopped ?? "—")} icon={Boxes} tone="warning" />
             <StatCard label="Images" value={String(info?.images ?? "—")} icon={Layers} />
@@ -87,6 +103,39 @@ export function Dashboard() {
               value={info ? formatBytes(info.imagesSizeMb) : "—"}
               icon={HardDrive}
             />
+            <StatCard
+              label="CPU"
+              value={info ? `${info.cpuPercent.toFixed(1)}%` : "—"}
+              detail={info?.cpus ? `of ${info.cpus} cores` : undefined}
+              icon={Cpu}
+            />
+            <StatCard
+              label="Memory"
+              value={info ? `${memPercent.toFixed(1)}%` : "—"}
+              detail={info?.memTotalMb ? `${formatBytes(info.memUsedMb)} of ${formatBytes(info.memTotalMb)}` : undefined}
+              icon={MemoryStick}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>CPU usage</CardTitle>
+                <span className="text-xs text-text-muted">Running containers, share of host CPU</span>
+              </CardHeader>
+              <CardContent>
+                <UsageChart label="CPU usage" points={cpuPoints} windowMs={HISTORY_MS} />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Memory usage</CardTitle>
+                <span className="text-xs text-text-muted">Running containers, share of host memory</span>
+              </CardHeader>
+              <CardContent>
+                <UsageChart label="Memory usage" points={memPoints} windowMs={HISTORY_MS} />
+              </CardContent>
+            </Card>
           </div>
 
           <Card>

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Meter } from "@/components/ui/Meter";
+import { BackLink } from "@/components/ui/BackLink";
+import { DetailField } from "@/components/ui/DetailField";
 import { cn } from "@/lib/utils";
 import { listContainers, listRecentLogs } from "@/lib/api";
 
@@ -22,9 +23,7 @@ export function ContainerDetail() {
   if (!container) {
     return (
       <div className="flex flex-col gap-4">
-        <Link to="/containers" className="flex w-fit items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
-          <ArrowLeft size={14} /> Back to containers
-        </Link>
+        <BackLink to="/containers">Back to containers</BackLink>
         <p className="text-sm text-text-muted">Container not found.</p>
       </div>
     );
@@ -32,9 +31,7 @@ export function ContainerDetail() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link to="/containers" className="flex w-fit items-center gap-1.5 text-sm text-text-muted hover:text-text-primary">
-        <ArrowLeft size={14} /> Back to containers
-      </Link>
+      <BackLink to="/containers">Back to containers</BackLink>
 
       <div className="flex items-center justify-between">
         <div>
@@ -71,17 +68,51 @@ export function ContainerDetail() {
               <p className="mb-1.5 text-xs text-text-muted">Memory usage</p>
               <Meter percent={container.memPercent} />
               <p className="mt-1 text-xs text-text-secondary">
-                {container.memUsageMb} MB / {container.memLimitMb} MB
+                {container.memUsageMb.toFixed(0)} MB / {container.memLimitMb.toFixed(0)} MB
               </p>
             </div>
-            <div>
-              <p className="text-xs text-text-muted">Ports</p>
-              <p className="mt-1 text-sm">{container.ports.join(", ") || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-text-muted">Created</p>
-              <p className="mt-1 text-sm">{new Date(container.createdAt).toLocaleString()}</p>
-            </div>
+            <DetailField label="Ports">{container.ports.join(", ") || "—"}</DetailField>
+            <DetailField label="Created">{new Date(container.createdAt).toLocaleString()}</DetailField>
+            <DetailField label="Image">
+              {container.imageId ? (
+                <Link
+                  to={`/images/${encodeURIComponent(container.imageId)}`}
+                  className="text-accent hover:underline"
+                  title="Open image"
+                >
+                  {container.image}
+                </Link>
+              ) : (
+                container.image
+              )}
+            </DetailField>
+            {container.project && (
+              <DetailField label="Compose project">
+                <Link
+                  to={`/compose/${encodeURIComponent(container.project)}`}
+                  className="text-accent hover:underline"
+                  title="Open compose project"
+                >
+                  {container.project}
+                </Link>
+              </DetailField>
+            )}
+            {container.volumes.length > 0 && (
+              <DetailField label="Volumes" className="sm:col-span-2">
+                <div className="flex flex-col gap-1">
+                  {container.volumes.map((volume) => (
+                    <Link
+                      key={volume}
+                      to={`/volumes/${encodeURIComponent(volume)}`}
+                      className="truncate text-accent hover:underline"
+                      title={volume}
+                    >
+                      {volume}
+                    </Link>
+                  ))}
+                </div>
+              </DetailField>
+            )}
           </CardContent>
         </Card>
       )}

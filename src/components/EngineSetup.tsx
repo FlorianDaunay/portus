@@ -3,22 +3,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, PlugZap, RefreshCw, TerminalSquare, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { getEngineStatus, installEngine, onEngineLog, startEngine } from "@/lib/api";
+import { getEngineStatus, installEngine, onEngineLog, startEngine, takeoverEngine } from "@/lib/api";
 import { isEngineAutoStartSuppressed, setEngineAutoStartSuppressed } from "@/lib/engineFlags";
 import type { EngineStatus } from "@/lib/types";
 
-type Busy = "checking" | "starting" | "installing" | null;
+type Busy = "checking" | "starting" | "installing" | "restarting" | null;
 
 const busyTitle: Record<Exclude<Busy, null>, string> = {
   checking: "Looking for Docker...",
   starting: "Starting Docker Engine...",
   installing: "Installing Docker Engine in WSL...",
+  restarting: "Restarting Docker Engine for Portus...",
 };
 
 const stateTitle: Record<EngineStatus["state"], string> = {
   ready: "Docker is ready",
   stopped: "Docker isn't running",
   notInstalled: "Docker Engine isn't installed",
+  restartRequired: "Docker is running in WSL",
   wslUnavailable: "WSL2 is required",
   unsupported: "Docker isn't running",
   error: "Couldn't start Docker",
@@ -137,6 +139,24 @@ export function EngineSetup() {
               <Button variant="primary" size="md" onClick={() => run("starting", startEngine)}>
                 <PlugZap size={15} />
                 Start Docker
+              </Button>
+            )}
+            {status.state === "restartRequired" && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Restart the Docker Engine running in ${status.distro}? Its running containers will be stopped.`
+                    )
+                  ) {
+                    run("restarting", takeoverEngine);
+                  }
+                }}
+              >
+                <PlugZap size={15} />
+                Restart Docker for Portus
               </Button>
             )}
             <Button

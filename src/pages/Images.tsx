@@ -1,16 +1,31 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Layers, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConnectionError } from "@/components/ui/ConnectionError";
+import { SortableTh } from "@/components/ui/SortableTh";
 import { listImages, removeImage } from "@/lib/api";
+import { useSort } from "@/lib/sort";
+import type { ImageSummary } from "@/lib/types";
 import { formatBytes, timeAgo } from "@/lib/utils";
+
+const columns = {
+  repoTag: (i: ImageSummary) => i.repoTag,
+  size: (i: ImageSummary) => i.sizeMb,
+  created: (i: ImageSummary) => new Date(i.createdAt).getTime() || 0,
+  inUse: (i: ImageSummary) => Number(i.inUse),
+};
+
+/** Default order: images in use on top, the rest keeps Docker's order. */
+const inUseFirst = (a: ImageSummary, b: ImageSummary) => Number(b.inUse) - Number(a.inUse);
 
 export function Images() {
   const [query, setQuery] = useState("");
+  const { sort, toggle, sortRows } = useSort(columns, inUseFirst);
   const queryClient = useQueryClient();
   const { data: images, isError, error } = useQuery({ queryKey: ["images"], queryFn: listImages });
   const removeMutation = useMutation({
@@ -24,9 +39,9 @@ export function Images() {
 
   const filtered = useMemo(() => {
     const list = images ?? [];
-    if (!query.trim()) return list;
-    return list.filter((i) => i.repoTag.toLowerCase().includes(query.toLowerCase()));
-  }, [images, query]);
+    if (!query.trim()) return sortRows(list);
+    return sortRows(list.filter((i) => i.repoTag.toLowerCase().includes(query.toLowerCase())));
+  }, [images, query, sortRows]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,10 +62,10 @@ export function Images() {
           <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="w-[42%] px-5 py-3 font-medium">Repository:Tag</th>
-                <th className="w-[13%] px-5 py-3 font-medium">Size</th>
-                <th className="w-[15%] px-5 py-3 font-medium">Created</th>
-                <th className="w-[15%] px-5 py-3 font-medium">In use</th>
+                <SortableTh label="Repository:Tag" column="repoTag" sort={sort} onSort={toggle} className="w-[42%]" />
+                <SortableTh label="Size" column="size" sort={sort} onSort={toggle} className="w-[13%]" />
+                <SortableTh label="Created" column="created" sort={sort} onSort={toggle} className="w-[15%]" />
+                <SortableTh label="In use" column="inUse" sort={sort} onSort={toggle} className="w-[15%]" />
                 <th className="w-[15%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
@@ -58,9 +73,13 @@ export function Images() {
               {filtered.map((img) => (
                 <tr key={img.id} className="transition-colors hover:bg-surface-hover">
                   <td className="truncate px-5 py-3">
-                    <p className="truncate font-medium text-text-primary" title={img.repoTag}>
+                    <Link
+                      to={`/images/${encodeURIComponent(img.id)}`}
+                      className="block truncate font-medium text-text-primary hover:text-accent hover:underline"
+                      title={img.repoTag}
+                    >
                       {img.repoTag}
-                    </p>
+                    </Link>
                     <p className="truncate text-xs text-text-muted">{img.id.slice(0, 19)}</p>
                   </td>
                   <td className="px-5 py-3 text-text-secondary">{formatBytes(img.sizeMb)}</td>

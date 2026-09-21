@@ -1,6 +1,7 @@
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Combine, FileCode2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent, CardTitle } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConnectionError } from "@/components/ui/ConnectionError";
@@ -31,24 +32,41 @@ export function Compose() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {(projects ?? []).map((project) => (
           <Card key={project.name}>
-            <CardHeader className="flex-col items-start gap-1">
-              <div className="flex w-full items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Combine size={15} className="text-accent" />
-                  {project.name}
-                </CardTitle>
-                <span className="text-xs text-text-muted">{project.services.length} services</span>
-              </div>
-              <p className="flex items-center gap-1.5 text-xs text-text-muted">
-                <FileCode2 size={12} />
-                {project.configPath}
-              </p>
-            </CardHeader>
+            <div>
+              <Link
+                to={`/compose/${encodeURIComponent(project.name)}`}
+                className="group flex w-full flex-col items-start gap-1 px-5 py-4"
+              >
+                <div className="flex w-full items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base group-hover:text-accent">
+                    <Combine size={15} className="text-accent" />
+                    {project.name}
+                  </CardTitle>
+                  <span className="text-xs text-text-muted">{project.services.length} services</span>
+                </div>
+                <p className="flex items-center gap-1.5 text-xs text-text-muted">
+                  <FileCode2 size={12} />
+                  {project.configPath}
+                </p>
+              </Link>
+            </div>
             <CardContent className="flex flex-col divide-y divide-border">
               {project.services.map((service) => (
-                <div key={service.name} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div
+                  key={service.containerId || service.name}
+                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{service.name}</p>
+                    {service.containerId ? (
+                      <Link
+                        to={`/containers/${service.containerId}`}
+                        className="block truncate text-sm font-medium hover:text-accent hover:underline"
+                      >
+                        {service.name}
+                      </Link>
+                    ) : (
+                      <p className="truncate text-sm font-medium">{service.name}</p>
+                    )}
                     <p className="truncate text-xs text-text-muted">{service.image}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3 text-xs text-text-muted">

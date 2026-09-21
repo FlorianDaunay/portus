@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeService {
+    /// Id of the service's container, so the UI can link to its detail page.
+    pub container_id: String,
     pub name: String,
     pub status: String,
     pub image: String,
@@ -66,6 +68,7 @@ pub async fn list(docker: &Docker) -> Result<Vec<ComposeProject>, String> {
 
         let entry = projects.entry(project).or_insert_with(|| (config_path, vec![]));
         entry.1.push(ComposeService {
+            container_id: c.id.unwrap_or_default(),
             name: service_name,
             status,
             image: c.image.unwrap_or_default(),

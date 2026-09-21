@@ -99,6 +99,35 @@ echo "==> Docker Engine installed"
 
 const STOP_SCRIPT: &str = "pkill -TERM -x dockerd\ni=0\nwhile pgrep -x dockerd >/dev/null && [ $i -lt 60 ]; do sleep 0.3; i=$((i+1)); done\n";
 
+/// Prints `none`, `portus` (a dockerd started through Portus's wrapper, i.e. with its TLS
+/// certificates) or `foreign` (a dockerd somebody else started: systemd, `service docker start`...).
+const CLASSIFY_SCRIPT: &str = r##"pid=$(pgrep -x dockerd | head -n 1)
+if [ -z "$pid" ]; then
+  echo none
+elif tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q -- '/etc/portus/tls'; then
+  echo portus
+else
+  echo foreign
+fi
+"##;
+
+/// Stops a dockerd that Portus didn't start, and keeps systemd from bringing it back (it would
+/// otherwise race with Portus's own dockerd for /var/run/docker.sock at every WSL boot).
+const TAKEOVER_SCRIPT: &str = r##"if [ -d /run/systemd/system ]; then
+  systemctl disable docker.service docker.socket >/dev/null 2>&1 || true
+  timeout 60 systemctl stop docker.socket docker.service >/dev/null 2>&1 || true
+fi
+service docker stop >/dev/null 2>&1 || true
+pkill -TERM -x dockerd >/dev/null 2>&1 || true
+i=0
+while pgrep -x dockerd >/dev/null && [ $i -lt 150 ]; do sleep 0.3; i=$((i+1)); done
+if pgrep -x dockerd >/dev/null; then
+  pkill -KILL -x dockerd >/dev/null 2>&1 || true
+  sleep 1
+fi
+rm -f /var/run/docker.pid
+"##;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Endpoint {
     Local,
@@ -166,6 +195,8 @@ pub enum EngineState {
     Ready,
     Stopped,
     NotInstalled,
+    /// A dockerd Portus didn't start is already running in the distro and can't be reached securely.
+    RestartRequired,
     WslUnavailable,
     Unsupported,
     Error,
@@ -322,6 +353,36 @@ async fn dockerd_running(distro: &str) -> bool {
     )
 }
 
+enum Running {
+    Idle,
+    Portus,
+    Foreign,
+}
+
+async fn running_kind(distro: &str) -> Running {
+    let Ok(out) = run_script(distro, CLASSIFY_SCRIPT).await else {
+        return Running::Idle;
+    };
+    match decode(&out.stdout).trim() {
+        "portus" => Running::Portus,
+        "foreign" => Running::Foreign,
+        _ => Running::Idle,
+    }
+}
+
+fn restart_required(mgr: &EngineManager, distro: &str) -> EngineStatus {
+    mgr.status(
+        EngineState::RestartRequired,
+        Some(distro.to_string()),
+        format!(
+            "Docker Engine is already running in WSL ({distro}), but Portus can't connect to it: it wasn't started \
+             with Portus's secure endpoint. Portus can restart it with that endpoint. Running containers will be \
+             stopped (those with a restart policy start again), and Docker's automatic start in that distribution \
+             will be disabled so that Portus manages it. Your images, volumes and containers are kept."
+        ),
+    )
+}
+
 async fn run_script(distro: &str, script: &str) -> Result<std::process::Output, String> {
     let mut child = wsl()
         .args(["-d", distro, "-u", "root", "--", "sh", "-s"])
@@ -432,7 +493,7 @@ pub async fn status(mgr: &EngineManager) -> EngineStatus {
         );
     }
 
-    let distros = match list_distros().await {
+    let mut distros = match list_distros().await {
         Ok(d) => d,
         Err(e) => {
             return mgr.status(
@@ -450,16 +511,27 @@ pub async fn status(mgr: &EngineManager) -> EngineStatus {
         );
     }
 
+    // The distribution Portus already manages comes first.
+    if let Some(saved) = settings::load().engine_distro {
+        if let Some(i) = distros.iter().position(|d| *d == saved) {
+            let d = distros.remove(i);
+            distros.insert(0, d);
+        }
+    }
+
     let mut missing: Option<String> = None;
     let mut failure: Option<String> = None;
     for distro in &distros {
         match probe_dockerd(distro).await {
             Probe::Found => {
-                return mgr.status(
-                    EngineState::Stopped,
-                    Some(distro.clone()),
-                    format!("Docker Engine is installed in WSL ({distro}) but isn't running."),
-                )
+                return match running_kind(distro).await {
+                    Running::Foreign => restart_required(mgr, distro),
+                    _ => mgr.status(
+                        EngineState::Stopped,
+                        Some(distro.clone()),
+                        format!("Docker Engine is installed in WSL ({distro}) but isn't running."),
+                    ),
+                };
             }
             Probe::Missing => {
                 missing.get_or_insert_with(|| distro.clone());
@@ -547,16 +619,20 @@ async fn start_locked(app: &AppHandle, mgr: &EngineManager) -> EngineStatus {
         );
     }
 
-    if dockerd_running(&distro).await {
-        return mgr.status(
-            EngineState::Error,
-            Some(distro.clone()),
-            format!(
-                "A dockerd process is already running in \"{distro}\" but doesn't accept Portus's secure connection \
-                 (it was probably started without Portus's certificates). Stop it with \
-                 `wsl -d {distro} -u root pkill dockerd` or run `wsl --shutdown`, then retry."
-            ),
-        );
+    match running_kind(&distro).await {
+        Running::Idle => {}
+        Running::Foreign => return restart_required(mgr, &distro),
+        Running::Portus => {
+            return mgr.status(
+                EngineState::Error,
+                Some(distro.clone()),
+                format!(
+                    "The Docker Engine started by Portus is running in \"{distro}\" but doesn't answer on 127.0.0.1:2376 \
+                     (mismatching certificates, or WSL localhost forwarding is disabled). Stop it with \
+                     `wsl -d {distro} -u root pkill dockerd` or run `wsl --shutdown`, then retry."
+                ),
+            );
+        }
     }
 
     // Follow the engine log while it boots so the user sees progress.
@@ -612,6 +688,35 @@ async fn start_locked(app: &AppHandle, mgr: &EngineManager) -> EngineStatus {
 pub async fn start(app: &AppHandle, mgr: &EngineManager) -> EngineStatus {
     let _guard = mgr.op.lock().await;
     start_locked(app, mgr).await
+}
+
+/// Replaces a dockerd that is already running in the distro (systemd, `service docker start`...)
+/// with Portus's own, which exposes the secure endpoint. Its containers are stopped by the shutdown
+/// and only come back when they have a restart policy; images and volumes are untouched.
+pub async fn takeover(app: &AppHandle, mgr: &EngineManager) -> EngineStatus {
+    let _guard = mgr.op.lock().await;
+    let current = status(mgr).await;
+    if current.state == EngineState::Stopped {
+        return start_locked(app, mgr).await;
+    }
+    if current.state != EngineState::RestartRequired {
+        return current;
+    }
+    let distro = current.distro.clone().unwrap_or_default();
+    mgr.logs.lock().unwrap().clear();
+
+    match run_script(&distro, TAKEOVER_SCRIPT).await {
+        Ok(out) if out.status.success() => start_locked(app, mgr).await,
+        Ok(out) => mgr.status(
+            EngineState::Error,
+            Some(distro),
+            format!(
+                "The existing Docker Engine could not be stopped: {}",
+                format!("{}{}", decode(&out.stdout), decode(&out.stderr)).trim()
+            ),
+        ),
+        Err(e) => mgr.status(EngineState::Error, Some(distro), e),
+    }
 }
 
 /// Stops the WSL engine (and its containers) on request.
