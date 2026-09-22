@@ -27,6 +27,10 @@ export async function startEngine(): Promise<EngineStatus> {
   return invoke<EngineStatus>("start_engine");
 }
 
+export async function takeoverEngine(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("takeover_engine");
+}
+
 export async function installEngine(): Promise<EngineStatus> {
   return invoke<EngineStatus>("install_engine");
 }

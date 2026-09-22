@@ -22,6 +22,8 @@ pub struct ContainerSummary {
     pub ports: Vec<String>,
     pub created_at: String,
     pub project: Option<String>,
+    /// Names of the named volumes mounted into the container.
+    pub volumes: Vec<String>,
     pub cpu_percent: f64,
     pub mem_percent: f64,
     pub mem_usage_mb: f64,
@@ -103,6 +105,14 @@ pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
             let labels = c.labels.unwrap_or_default();
             let project = labels.get("com.docker.compose.project").cloned();
 
+            let volumes: Vec<String> = c
+                .mounts
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|m| m.typ == Some(MountPointTypeEnum::VOLUME))
+                .filter_map(|m| m.name)
+                .collect();
+
             let mut ports: Vec<String> = Vec::new();
             for p in c.ports.unwrap_or_default() {
                 if let Some(public) = p.public_port {
@@ -127,6 +137,7 @@ pub async fn list(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
                     .map(|dt| dt.to_rfc3339())
                     .unwrap_or_default(),
                 project,
+                volumes,
                 cpu_percent: 0.0,
                 mem_percent: 0.0,
                 mem_usage_mb: 0.0,

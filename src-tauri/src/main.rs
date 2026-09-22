@@ -12,6 +12,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::get_engine_status,
             commands::start_engine,
+            commands::takeover_engine,
             commands::stop_engine,
             commands::install_engine,
             commands::get_settings,

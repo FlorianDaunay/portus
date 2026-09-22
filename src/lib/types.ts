@@ -10,6 +10,7 @@ export interface ContainerSummary {
   ports: string[];
   createdAt: string;
   project?: string;
+  volumes: string[];
   cpuPercent: number;
   memPercent: number;
   memUsageMb: number;
@@ -19,6 +20,7 @@ export interface ContainerSummary {
 export interface ImageSummary {
   id: string;
   repoTag: string;
+  repoTags: string[];
   sizeMb: number;
   createdAt: string;
   inUse: boolean;
@@ -32,6 +34,7 @@ export interface VolumeSummary {
 }
 
 export interface ComposeService {
+  containerId: string;
   name: string;
   status: ContainerStatus;
   image: string;
@@ -56,6 +59,7 @@ export type EngineState =
   | "ready"
   | "stopped"
   | "notInstalled"
+  | "restartRequired"
   | "wslUnavailable"
   | "unsupported"
   | "error";
@@ -80,4 +84,9 @@ export interface DaemonInfo {
   containersStopped: number;
   images: number;
   imagesSizeMb: number;
+  cpus: number;
+  memTotalMb: number;
+  /** Share of the host CPU used by the running containers, 0-100. */
+  cpuPercent: number;
+  memUsedMb: number;
 }

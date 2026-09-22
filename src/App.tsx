@@ -4,8 +4,11 @@ import { Dashboard } from "@/pages/Dashboard";
 import { Containers } from "@/pages/Containers";
 import { ContainerDetail } from "@/pages/ContainerDetail";
 import { Compose } from "@/pages/Compose";
+import { ComposeDetail } from "@/pages/ComposeDetail";
 import { Images } from "@/pages/Images";
+import { ImageDetail } from "@/pages/ImageDetail";
 import { Volumes } from "@/pages/Volumes";
+import { VolumeDetail } from "@/pages/VolumeDetail";
 import { Logs } from "@/pages/Logs";
 
 export function App() {
@@ -16,8 +19,11 @@ export function App() {
         <Route path="containers" element={<Containers />} />
         <Route path="containers/:id" element={<ContainerDetail />} />
         <Route path="compose" element={<Compose />} />
+        <Route path="compose/:name" element={<ComposeDetail />} />
         <Route path="images" element={<Images />} />
+        <Route path="images/:id" element={<ImageDetail />} />
         <Route path="volumes" element={<Volumes />} />
+        <Route path="volumes/:name" element={<VolumeDetail />} />
         <Route path="logs" element={<Logs />} />
       </Route>
     </Routes>

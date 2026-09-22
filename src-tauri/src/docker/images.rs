@@ -9,6 +9,8 @@ use super::containers;
 pub struct ImageSummary {
     pub id: String,
     pub repo_tag: String,
+    /// Every tag the image carries (`repo_tag` is only the first one).
+    pub repo_tags: Vec<String>,
     pub size_mb: f64,
     pub created_at: String,
     pub in_use: bool,
@@ -38,6 +40,7 @@ pub async fn list(docker: &Docker) -> Result<Vec<ImageSummary>, String> {
             ImageSummary {
                 id: img.id,
                 repo_tag,
+                repo_tags: img.repo_tags,
                 size_mb: img.size as f64 / (1024.0 * 1024.0),
                 created_at: chrono::DateTime::from_timestamp(img.created, 0)
                     .map(|dt| dt.to_rfc3339())

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -6,13 +7,27 @@ import { TopBar } from "./TopBar";
 import { EngineSetup } from "@/components/EngineSetup";
 import { ConnectionError } from "@/components/ui/ConnectionError";
 import { getDaemonInfo } from "@/lib/api";
+import { useMetrics } from "@/lib/metrics";
 
 export function AppShell() {
-  const { data, isPending, isError, error } = useQuery({
+  const { data, dataUpdatedAt, isPending, isError, error } = useQuery({
     queryKey: ["daemon-info"],
     queryFn: getDaemonInfo,
     refetchInterval: 5000,
   });
+
+  // The dashboard charts show how the load evolved, so sample here, whatever page is open.
+  const record = useMetrics((s) => s.record);
+  useEffect(() => {
+    if (!data?.connected) return;
+    record({
+      t: dataUpdatedAt,
+      cpu: data.cpuPercent,
+      mem: data.memTotalMb > 0 ? (data.memUsedMb / data.memTotalMb) * 100 : 0,
+      memUsedMb: data.memUsedMb,
+      memTotalMb: data.memTotalMb,
+    });
+  }, [data, dataUpdatedAt, record]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">

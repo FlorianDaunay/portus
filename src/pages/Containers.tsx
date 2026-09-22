@@ -8,11 +8,28 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { Meter } from "@/components/ui/Meter";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConnectionError } from "@/components/ui/ConnectionError";
+import { SortableTh } from "@/components/ui/SortableTh";
 import { listContainers, removeContainer, restartContainer, startContainer, stopContainer } from "@/lib/api";
+import { useSort } from "@/lib/sort";
+import type { ContainerSummary } from "@/lib/types";
+import { containerStatusScore as statusScore } from "@/lib/utils";
 import { Link } from "react-router-dom";
+
+const columns = {
+  name: (c: ContainerSummary) => c.name,
+  image: (c: ContainerSummary) => c.image,
+  status: (c: ContainerSummary) => statusScore[c.status],
+  cpu: (c: ContainerSummary) => c.cpuPercent,
+  memory: (c: ContainerSummary) => c.memUsageMb,
+  ports: (c: ContainerSummary) => parseInt(c.ports[0] ?? "", 10) || 0,
+};
+
+/** Default order: running containers on top, the rest keeps Docker's order. */
+const runningFirst = (a: ContainerSummary, b: ContainerSummary) => statusScore[b.status] - statusScore[a.status];
 
 export function Containers() {
   const [query, setQuery] = useState("");
+  const { sort, toggle, sortRows } = useSort(columns, runningFirst);
   const queryClient = useQueryClient();
   const {
     data: containers,
@@ -31,10 +48,10 @@ export function Containers() {
 
   const filtered = useMemo(() => {
     const list = containers ?? [];
-    if (!query.trim()) return list;
+    if (!query.trim()) return sortRows(list);
     const q = query.toLowerCase();
-    return list.filter((c) => c.name.toLowerCase().includes(q) || c.image.toLowerCase().includes(q));
-  }, [containers, query]);
+    return sortRows(list.filter((c) => c.name.toLowerCase().includes(q) || c.image.toLowerCase().includes(q)));
+  }, [containers, query, sortRows]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,12 +77,12 @@ export function Containers() {
           <table className="w-full table-fixed text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs text-text-muted">
-                <th className="w-[18%] px-5 py-3 font-medium">Name</th>
-                <th className="w-[22%] px-5 py-3 font-medium">Image</th>
-                <th className="w-[11%] px-5 py-3 font-medium">Status</th>
-                <th className="w-[11%] px-5 py-3 font-medium">CPU</th>
-                <th className="w-[13%] px-5 py-3 font-medium">Memory</th>
-                <th className="w-[15%] px-5 py-3 font-medium">Ports</th>
+                <SortableTh label="Name" column="name" sort={sort} onSort={toggle} className="w-[18%]" />
+                <SortableTh label="Image" column="image" sort={sort} onSort={toggle} className="w-[22%]" />
+                <SortableTh label="Status" column="status" sort={sort} onSort={toggle} className="w-[11%]" />
+                <SortableTh label="CPU" column="cpu" sort={sort} onSort={toggle} className="w-[11%]" />
+                <SortableTh label="Memory" column="memory" sort={sort} onSort={toggle} className="w-[13%]" />
+                <SortableTh label="Ports" column="ports" sort={sort} onSort={toggle} className="w-[15%]" />
                 <th className="w-[10%] px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>

@@ -1,3 +1,5 @@
+import type { ContainerStatus } from "./types";
+
 export function cn(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
 }
@@ -8,6 +10,15 @@ export function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Unknown error";
 }
+
+/** Higher means "more alive": sorting descending puts running containers first. */
+export const containerStatusScore: Record<ContainerStatus, number> = {
+  running: 4,
+  restarting: 3,
+  paused: 2,
+  created: 1,
+  exited: 0,
+};
 
 export function formatBytes(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
