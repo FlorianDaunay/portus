@@ -1,0 +1,129 @@
+name: Release
+
+# Every push to main bumps the version (level chosen from the changes, see scripts/bump-version.mjs), tags it,
+# and builds installers for Windows, macOS (universal: Apple silicon + Intel) and Linux into a draft GitHub release.
+# Changes that only touch docs, CI or tooling don't bump anything and don't build.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump for this manual run
+        type: choice
+        options: [none, patch, minor, major]
+        default: none
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Bump version
+    runs-on: ubuntu-latest
+    # The bump commit itself must not trigger another bump.
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore(release)')
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      build: ${{ github.event_name == 'workflow_dispatch' || steps.bump.outputs.bumped == 'true' }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Work out the new version
+        id: bump
+        env:
+          EVENT: ${{ github.event_name }}
+          MANUAL_LEVEL: ${{ inputs.bump }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$MANUAL_LEVEL" = "none" ]; then
+              echo "bumped=false" >> "$GITHUB_OUTPUT"
+              echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+            else
+              node scripts/bump-version.mjs --level "$MANUAL_LEVEL"
+            fi
+          else
+            node scripts/bump-version.mjs --from "$BEFORE" --to "$AFTER"
+          fi
+        shell: bash
+
+      - name: Commit and tag
+        id: commit
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          BUMPED: ${{ steps.bump.outputs.bumped }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$BUMPED" = "true" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+            git commit -m "chore(release): v$VERSION [skip ci]"
+            git tag "v$VERSION"
+            git push origin "HEAD:$BRANCH" "v$VERSION"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: version
+    if: needs.version.outputs.build == 'true'
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest, args: "", rust-targets: "" }
+          - { name: macOS, os: macos-latest, args: "--target universal-apple-darwin", rust-targets: "aarch64-apple-darwin,x86_64-apple-darwin" }
+          - { name: Linux, os: ubuntu-22.04, args: "", rust-targets: "" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ needs.version.outputs.version }}
+          releaseName: Portus v${{ needs.version.outputs.version }}
+          releaseBody: See the assets below to download and install Portus.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

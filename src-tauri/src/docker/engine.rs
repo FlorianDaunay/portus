@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
-use crate::settings;
+use crate::settings::{self, EngineSource};
 
 const TLS_ADDR: &str = "tcp://127.0.0.1:2376";
 const START_TIMEOUT: Duration = Duration::from_secs(60);
@@ -132,6 +132,7 @@ rm -f /var/run/docker.pid
 enum Endpoint {
     Local,
     Tls,
+    Custom,
 }
 
 static ENDPOINT: Mutex<Endpoint> = Mutex::new(Endpoint::Local);
@@ -154,8 +155,58 @@ fn client(endpoint: Endpoint) -> Result<Docker, String> {
                 API_DEFAULT_VERSION,
             )
         }
+        Endpoint::Custom => {
+            let saved = settings::load();
+            custom_client(
+                saved.custom_endpoint.as_deref().unwrap_or_default(),
+                saved.custom_tls_dir.as_deref(),
+            )
+        }
     }
     .map_err(|e| e.to_string())
+}
+
+/// Client for a user-provided endpoint (`unix://`, `npipe://`, or `tcp://`/`http://`/`https://`).
+fn custom_client(endpoint: &str, tls_dir: Option<&str>) -> Result<Docker, bollard::errors::Error> {
+    let endpoint = endpoint.trim();
+    let invalid = |msg: String| bollard::errors::Error::DockerResponseServerError {
+        status_code: 0,
+        message: msg,
+    };
+    if endpoint.is_empty() {
+        return Err(invalid("No custom endpoint is configured.".into()));
+    }
+    if endpoint.starts_with("unix://") {
+        #[cfg(unix)]
+        return Docker::connect_with_unix(endpoint, 120, API_DEFAULT_VERSION);
+        #[cfg(not(unix))]
+        return Err(invalid("Unix sockets aren't available on this system.".into()));
+    }
+    if endpoint.starts_with("npipe://") {
+        #[cfg(windows)]
+        return Docker::connect_with_named_pipe(endpoint, 120, API_DEFAULT_VERSION);
+        #[cfg(not(windows))]
+        return Err(invalid("Named pipes are only available on Windows.".into()));
+    }
+    if endpoint.starts_with("tcp://") || endpoint.starts_with("http://") || endpoint.starts_with("https://") {
+        return match tls_dir.map(str::trim).filter(|d| !d.is_empty()) {
+            Some(dir) => {
+                let dir = PathBuf::from(dir);
+                Docker::connect_with_ssl(
+                    endpoint,
+                    &dir.join("key.pem"),
+                    &dir.join("cert.pem"),
+                    &dir.join("ca.pem"),
+                    120,
+                    API_DEFAULT_VERSION,
+                )
+            }
+            None => Docker::connect_with_http(endpoint, 120, API_DEFAULT_VERSION),
+        };
+    }
+    Err(invalid(format!(
+        "\"{endpoint}\" isn't a supported address: start it with unix://, npipe:// or tcp://."
+    )))
 }
 
 /// Client for whichever endpoint `detect()` last found responding.
@@ -168,6 +219,15 @@ pub fn is_managed() -> bool {
     *ENDPOINT.lock().unwrap() == Endpoint::Tls
 }
 
+/// Which kind of engine answered last: `local`, `wsl` or `custom`.
+pub fn connection_kind() -> &'static str {
+    match *ENDPOINT.lock().unwrap() {
+        Endpoint::Local => "local",
+        Endpoint::Tls => "wsl",
+        Endpoint::Custom => "custom",
+    }
+}
+
 async fn responds(endpoint: Endpoint) -> bool {
     let Ok(docker) = client(endpoint) else {
         return false;
@@ -178,9 +238,23 @@ async fn responds(endpoint: Endpoint) -> bool {
     )
 }
 
-/// Looks for a reachable engine (local socket/pipe first, then the WSL engine over mutual TLS).
+/// Endpoints worth trying for the engine source the user picked.
+fn candidates(source: EngineSource, custom_configured: bool) -> Vec<Endpoint> {
+    match source {
+        EngineSource::Auto if custom_configured => vec![Endpoint::Local, Endpoint::Tls, Endpoint::Custom],
+        EngineSource::Auto => vec![Endpoint::Local, Endpoint::Tls],
+        EngineSource::Desktop => vec![Endpoint::Local],
+        EngineSource::Wsl => vec![Endpoint::Tls],
+        EngineSource::Custom => vec![Endpoint::Custom],
+    }
+}
+
+/// Looks for a reachable engine among those allowed by the chosen source (in `auto`: the local
+/// socket/pipe first, then the WSL engine over mutual TLS, then the custom endpoint if any).
 pub async fn detect() -> bool {
-    for endpoint in [Endpoint::Local, Endpoint::Tls] {
+    let saved = settings::load();
+    let custom = saved.custom_endpoint.as_deref().is_some_and(|e| !e.trim().is_empty());
+    for endpoint in candidates(saved.engine_source, custom) {
         if responds(endpoint).await {
             *ENDPOINT.lock().unwrap() = endpoint;
             return true;
@@ -197,6 +271,8 @@ pub enum EngineState {
     NotInstalled,
     /// A dockerd Portus didn't start is already running in the distro and can't be reached securely.
     RestartRequired,
+    /// The chosen engine (Docker Desktop or a custom endpoint) doesn't answer.
+    Unreachable,
     WslUnavailable,
     Unsupported,
     Error,
@@ -485,11 +561,43 @@ pub async fn status(mgr: &EngineManager) -> EngineStatus {
         return mgr.status(EngineState::Ready, distro, "Docker Engine is running.");
     }
 
+    let saved = settings::load();
+    match saved.engine_source {
+        EngineSource::Desktop => {
+            return mgr.status(
+                EngineState::Unreachable,
+                None,
+                "Nothing answers on the local Docker socket. Start Docker Desktop (or your Docker daemon) and check \
+                 again, or pick another engine at the top.",
+            )
+        }
+        EngineSource::Custom => {
+            let endpoint = saved.custom_endpoint.unwrap_or_default();
+            let message = match client(Endpoint::Custom) {
+                Err(e) => e,
+                Ok(_) => format!(
+                    "Nothing answered at {endpoint}. Check that the engine is running, that the address is right, \
+                     and that the certificates match if the endpoint uses TLS."
+                ),
+            };
+            return mgr.status(EngineState::Unreachable, None, message);
+        }
+        EngineSource::Wsl if !cfg!(windows) => {
+            return mgr.status(
+                EngineState::Unsupported,
+                None,
+                "The WSL engine is only available on Windows. Pick another engine at the top.",
+            )
+        }
+        _ => {}
+    }
+
     if !cfg!(windows) {
         return mgr.status(
             EngineState::Unsupported,
             None,
-            "Docker isn't running. Start the Docker daemon (for example `sudo systemctl start docker`) and retry.",
+            "Docker isn't running. Start Docker Desktop, or the Docker daemon (for example `sudo systemctl start docker`), \
+             and retry. If your engine lives elsewhere (Colima, OrbStack, a remote host...), enter its address below.",
         );
     }
 

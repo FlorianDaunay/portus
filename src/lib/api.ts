@@ -2,6 +2,7 @@ import type {
   ComposeProject,
   ContainerSummary,
   DaemonInfo,
+  EngineSource,
   EngineStatus,
   ImageSummary,
   LogLine,
@@ -45,6 +46,10 @@ export async function getSettings(): Promise<Settings> {
 
 export async function setStopEngineOnExit(value: boolean): Promise<Settings> {
   return invoke<Settings>("set_stop_engine_on_exit", { value });
+}
+
+export async function setEngineSource(source: EngineSource, endpoint?: string, tlsDir?: string): Promise<Settings> {
+  return invoke<Settings>("set_engine_source", { source, endpoint, tlsDir });
 }
 
 export async function onEngineLog(callback: (line: string) => void): Promise<() => void> {

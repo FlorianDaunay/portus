@@ -18,6 +18,9 @@ It aims to stay simple and fast: no bloated dashboards, no unnecessary features.
 - **Images** — browse, pull, remove, and inspect local images.
 - **Volumes** — list, inspect, and remove volumes.
 - **Logs** — real-time, streaming log viewer for containers.
+- **Your engine, your choice** — Docker Desktop, the engine Portus manages in WSL, or any endpoint you enter (Colima, OrbStack, a remote host).
+- **Learn** — short tutorials with animated schemas, and a cheat sheet of useful Docker commands you can extend with your own.
+- **Cross-platform** — installers for Windows, macOS and Linux are built by CI on every release.
 
 ## Status
 

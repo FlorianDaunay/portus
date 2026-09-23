@@ -1,21 +1,41 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Play, Square, RotateCw, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Meter } from "@/components/ui/Meter";
 import { BackLink } from "@/components/ui/BackLink";
 import { DetailField } from "@/components/ui/DetailField";
 import { cn } from "@/lib/utils";
-import { listContainers, listRecentLogs } from "@/lib/api";
+import { listContainers, listRecentLogs, removeContainer, restartContainer, startContainer, stopContainer } from "@/lib/api";
 
 const tabs = ["Overview", "Logs", "Inspect"] as const;
 
 export function ContainerDetail() {
   const { id } = useParams();
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: containers } = useQuery({ queryKey: ["containers"], queryFn: listContainers });
   const { data: logs } = useQuery({ queryKey: ["logs"], queryFn: listRecentLogs });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["containers"] });
+    queryClient.invalidateQueries({ queryKey: ["daemon-info"] });
+    queryClient.invalidateQueries({ queryKey: ["logs"] });
+  };
+  const startMutation = useMutation({ mutationFn: startContainer, onSettled: invalidate, meta: { label: "Start container" } });
+  const stopMutation = useMutation({ mutationFn: stopContainer, onSettled: invalidate, meta: { label: "Stop container" } });
+  const restartMutation = useMutation({ mutationFn: restartContainer, onSettled: invalidate, meta: { label: "Restart container" } });
+  const removeMutation = useMutation({
+    mutationFn: removeContainer,
+    onSuccess: () => navigate("/containers"),
+    onSettled: invalidate,
+    meta: { label: "Remove container" },
+  });
+  const busy = startMutation.isPending || stopMutation.isPending || restartMutation.isPending || removeMutation.isPending;
 
   const container = containers?.find((c) => c.id === id);
   const containerLogs = (logs ?? []).filter((l) => l.containerId === id);
@@ -38,7 +58,38 @@ export function ContainerDetail() {
           <h1 className="text-2xl font-semibold tracking-tight">{container.name}</h1>
           <p className="mt-1 text-sm text-text-muted">{container.image}</p>
         </div>
-        <StatusPill status={container.status} />
+        <div className="flex items-center gap-3">
+          <StatusPill status={container.status} />
+          <div className="flex items-center gap-1.5">
+            {container.status === "running" ? (
+              <Button disabled={busy} onClick={() => stopMutation.mutate(container.id)}>
+                <Square size={14} />
+                Stop
+              </Button>
+            ) : (
+              <Button variant="primary" disabled={busy} onClick={() => startMutation.mutate(container.id)}>
+                <Play size={14} />
+                Start
+              </Button>
+            )}
+            <Button disabled={busy} onClick={() => restartMutation.mutate(container.id)}>
+              <RotateCw size={14} />
+              Restart
+            </Button>
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm(`Remove container "${container.name}"? It is stopped first if it is running.`)) {
+                  removeMutation.mutate(container.id);
+                }
+              }}
+            >
+              <Trash2 size={14} />
+              Remove
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-1 border-b border-border">

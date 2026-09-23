@@ -4,7 +4,7 @@ use crate::docker::containers::ContainerSummary;
 use crate::docker::engine::{EngineManager, EngineStatus};
 use crate::docker::images::ImageSummary;
 use crate::docker::volumes::VolumeSummary;
-use crate::settings::{self, Settings};
+use crate::settings::{self, EngineSource, Settings};
 use serde::Serialize;
 use tauri::AppHandle;
 
@@ -13,6 +13,8 @@ use tauri::AppHandle;
 pub struct DaemonInfo {
     pub connected: bool,
     pub managed: bool,
+    /// Kind of engine answering: `local`, `wsl` or `custom`.
+    pub source: String,
     pub version: String,
     pub containers_running: usize,
     pub containers_stopped: usize,
@@ -31,6 +33,7 @@ impl DaemonInfo {
         DaemonInfo {
             connected: false,
             managed: false,
+            source: String::new(),
             version: String::new(),
             containers_running: 0,
             containers_stopped: 0,
@@ -52,6 +55,32 @@ pub fn get_settings() -> Settings {
 #[tauri::command]
 pub fn set_stop_engine_on_exit(value: bool) -> Result<Settings, String> {
     settings::update(|s| s.stop_engine_on_exit = value)
+}
+
+/// Picks which engine Portus talks to. `endpoint`/`tls_dir` are only kept for the custom source.
+#[tauri::command]
+pub fn set_engine_source(
+    source: EngineSource,
+    endpoint: Option<String>,
+    tls_dir: Option<String>,
+) -> Result<Settings, String> {
+    let endpoint = endpoint.map(|e| e.trim().to_string()).filter(|e| !e.is_empty());
+    let tls_dir = tls_dir.map(|d| d.trim().to_string()).filter(|d| !d.is_empty());
+    if source == EngineSource::Custom {
+        let Some(address) = &endpoint else {
+            return Err("Enter the address of the Docker engine.".into());
+        };
+        if !["unix://", "npipe://", "tcp://", "http://", "https://"].iter().any(|p| address.starts_with(p)) {
+            return Err("The address must start with unix://, npipe:// or tcp://.".into());
+        }
+    }
+    settings::update(|s| {
+        s.engine_source = source;
+        if source == EngineSource::Custom {
+            s.custom_endpoint = endpoint;
+            s.custom_tls_dir = tls_dir;
+        }
+    })
 }
 
 #[tauri::command]
@@ -124,6 +153,7 @@ pub async fn get_daemon_info() -> Result<DaemonInfo, String> {
     Ok(DaemonInfo {
         connected: true,
         managed: docker::engine::is_managed(),
+        source: docker::engine::connection_kind().to_string(),
         version: version.version.unwrap_or_default(),
         containers_running: running,
         containers_stopped: stopped,
