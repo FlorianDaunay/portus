@@ -60,3 +60,137 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--color-text-muted) / var(--alpha-text-muted));
 }
+
+/* Tutorial diagrams (src/components/tutorial): plain SVG animated with CSS so they follow the theme. */
+@keyframes diagram-slide {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  12%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(var(--dx, 100px));
+    opacity: 0;
+  }
+}
+@keyframes diagram-cycle-0 {
+  0%,
+  24% {
+    opacity: 1;
+  }
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes diagram-cycle-1 {
+  0%,
+  24% {
+    opacity: 0;
+  }
+  25%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes diagram-cycle-2 {
+  0%,
+  49% {
+    opacity: 0;
+  }
+  50%,
+  74% {
+    opacity: 1;
+  }
+  75%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes diagram-cycle-3 {
+  0%,
+  74% {
+    opacity: 0;
+  }
+  75%,
+  99% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes diagram-drop {
+  0% {
+    transform: translateY(-14px);
+    opacity: 0;
+  }
+  20%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes diagram-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.diagram-slide {
+  animation: diagram-slide var(--dur, 3s) ease-in-out infinite;
+}
+/* One highlight per step of a four-step loop, all starting together so they never overlap. */
+.diagram-cycle-0,
+.diagram-cycle-1,
+.diagram-cycle-2,
+.diagram-cycle-3 {
+  opacity: 0;
+  animation-duration: var(--dur, 8s);
+  animation-timing-function: step-end;
+  animation-iteration-count: infinite;
+}
+.diagram-cycle-0 {
+  animation-name: diagram-cycle-0;
+}
+.diagram-cycle-1 {
+  animation-name: diagram-cycle-1;
+}
+.diagram-cycle-2 {
+  animation-name: diagram-cycle-2;
+}
+.diagram-cycle-3 {
+  animation-name: diagram-cycle-3;
+}
+.diagram-drop {
+  animation: diagram-drop var(--dur, 4s) ease-out infinite;
+}
+.diagram-blink {
+  animation: diagram-blink var(--dur, 2s) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagram-slide,
+  .diagram-drop,
+  .diagram-blink {
+    animation: none;
+  }
+  .diagram-cycle-0,
+  .diagram-cycle-1,
+  .diagram-cycle-2,
+  .diagram-cycle-3 {
+    animation: none;
+    opacity: 0.25;
+  }
+}

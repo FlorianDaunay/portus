@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Download, Loader2, PlugZap, RefreshCw, TerminalSquare, TriangleAlert } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EngineEndpointForm } from "@/components/EngineEndpointForm";
 import { getEngineStatus, installEngine, onEngineLog, startEngine, takeoverEngine } from "@/lib/api";
 import { isEngineAutoStartSuppressed, setEngineAutoStartSuppressed } from "@/lib/engineFlags";
 import type { EngineStatus } from "@/lib/types";
@@ -21,6 +22,7 @@ const stateTitle: Record<EngineStatus["state"], string> = {
   stopped: "Docker isn't running",
   notInstalled: "Docker Engine isn't installed",
   restartRequired: "Docker is running in WSL",
+  unreachable: "Can't reach Docker",
   wslUnavailable: "WSL2 is required",
   unsupported: "Docker isn't running",
   error: "Couldn't start Docker",
@@ -170,6 +172,19 @@ export function EngineSetup() {
           </div>
         )}
       </Card>
+
+      {!busy && status && status.state !== "ready" && (
+        <Card className="flex flex-col gap-3 px-8 py-6">
+          <div>
+            <h2 className="text-sm font-semibold text-text-primary">Use another Docker engine</h2>
+            <p className="mt-0.5 text-xs text-text-muted">
+              If Docker runs somewhere Portus doesn't look (Colima, OrbStack, a custom socket, a remote host),
+              enter its address.
+            </p>
+          </div>
+          <EngineEndpointForm />
+        </Card>
+      )}
 
       {logs.length > 0 && (
         <Card className="overflow-hidden">

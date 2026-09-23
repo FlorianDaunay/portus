@@ -17,6 +17,7 @@ fn main() {
             commands::install_engine,
             commands::get_settings,
             commands::set_stop_engine_on_exit,
+            commands::set_engine_source,
             commands::get_daemon_info,
             commands::list_containers,
             commands::start_container,

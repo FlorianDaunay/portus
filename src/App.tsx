@@ -10,6 +10,9 @@ import { ImageDetail } from "@/pages/ImageDetail";
 import { Volumes } from "@/pages/Volumes";
 import { VolumeDetail } from "@/pages/VolumeDetail";
 import { Logs } from "@/pages/Logs";
+import { Tutorials } from "@/pages/Tutorials";
+import { TutorialDetail } from "@/pages/TutorialDetail";
+import { Commands } from "@/pages/Commands";
 
 export function App() {
   return (
@@ -25,6 +28,9 @@ export function App() {
         <Route path="volumes" element={<Volumes />} />
         <Route path="volumes/:name" element={<VolumeDetail />} />
         <Route path="logs" element={<Logs />} />
+        <Route path="learn" element={<Tutorials />} />
+        <Route path="learn/:slug" element={<TutorialDetail />} />
+        <Route path="commands" element={<Commands />} />
       </Route>
     </Routes>
   );

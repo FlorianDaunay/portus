@@ -36,3 +36,6 @@ export function timeAgo(iso: string): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+/** The WSL engine only exists on Windows, so the engine picker hides it elsewhere. */
+export const isWindows = typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent);

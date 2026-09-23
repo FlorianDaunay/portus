@@ -60,6 +60,7 @@ export type EngineState =
   | "stopped"
   | "notInstalled"
   | "restartRequired"
+  | "unreachable"
   | "wslUnavailable"
   | "unsupported"
   | "error";
@@ -71,7 +72,12 @@ export interface EngineStatus {
   logs: string[];
 }
 
+export type EngineSource = "auto" | "desktop" | "wsl" | "custom";
+
 export interface Settings {
+  engineSource: EngineSource;
+  customEndpoint?: string;
+  customTlsDir?: string;
   stopEngineOnExit: boolean;
   engineDistro?: string;
 }
@@ -79,6 +85,8 @@ export interface Settings {
 export interface DaemonInfo {
   connected: boolean;
   managed: boolean;
+  /** Kind of engine answering: "local", "wsl" or "custom" (empty when disconnected). */
+  source: "local" | "wsl" | "custom" | "";
   version: string;
   containersRunning: number;
   containersStopped: number;
