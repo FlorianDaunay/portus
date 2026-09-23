@@ -1,6 +1,6 @@
 [package]
 name = "portus"
-version = "0.1.0"
+version = "0.2.0"
 description = "A free, open source, lightweight GUI for managing Docker"
 edition = "2021"
 
