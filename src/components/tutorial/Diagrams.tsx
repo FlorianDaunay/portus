@@ -249,3 +249,21 @@ export function ComposeDiagram() {
     </Diagram>
   );
 }
+
+/** Dockerfile -> build -> image -> container. */
+export function BuildDiagram() {
+  return (
+    <Diagram label="A Dockerfile is built into an image, which runs as a container">
+      <Node x={10} y={70} w={170} h={80} title="Dockerfile" sub="FROM, COPY, RUN, CMD" />
+      <Node x={235} y={70} w={170} h={80} title="Image" sub="one layer per step" tone="accent" />
+      <Node x={460} y={70} w={170} h={80} title="Container" sub="the image, running" />
+      <Link x1={180} y1={110} x2={235} y2={110} />
+      <Link x1={405} y1={110} x2={460} y2={110} />
+      <Packet x={182} y={110} dx={50} dur={2.6} />
+      <Packet x={407} y={110} dx={50} delay={1.3} dur={2.6} />
+      <Caption x={207} y={176}>docker build</Caption>
+      <Caption x={432} y={176}>docker run</Caption>
+      <Caption x={320} y={210}>Change a late step and Docker reuses the cached layers before it.</Caption>
+    </Diagram>
+  );
+}

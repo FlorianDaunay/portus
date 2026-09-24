@@ -8,9 +8,13 @@ import {
   Combine,
   GraduationCap,
   TerminalSquare,
+  ArrowLeftRight,
+  SquareTerminal,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useActiveMigrations } from "@/lib/migrations";
 import { version } from "../../../package.json";
 
 interface NavItem {
@@ -32,15 +36,26 @@ const navGroups: Array<{ title?: string; items: NavItem[] }> = [
     ],
   },
   {
+    title: "Tools",
+    items: [
+      { to: "/migrate", label: "Migrate", icon: ArrowLeftRight },
+      { to: "/console", label: "Console", icon: SquareTerminal },
+    ],
+  },
+  {
     title: "Learn",
     items: [
       { to: "/learn", label: "Tutorials", icon: GraduationCap },
       { to: "/commands", label: "Commands", icon: TerminalSquare },
     ],
   },
+  {
+    items: [{ to: "/settings", label: "Settings", icon: Settings }],
+  },
 ];
 
 export function Sidebar() {
+  const activeMigrations = useActiveMigrations();
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center gap-2 px-5 py-5">
@@ -71,6 +86,11 @@ export function Sidebar() {
               >
                 <Icon size={16} strokeWidth={2} />
                 {label}
+                {to === "/migrate" && activeMigrations > 0 && (
+                  <span className="ml-auto rounded-pill bg-accent px-1.5 text-xs font-semibold text-accent-foreground">
+                    {activeMigrations}
+                  </span>
+                )}
               </NavLink>
             ))}
           </div>

@@ -228,6 +228,67 @@ pub fn connection_kind() -> &'static str {
     }
 }
 
+/// An engine Portus can reach right now, whichever one the top bar is set to.
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EngineInfo {
+    /// `local`, `wsl` or `custom`: the value to pass back to `client_for_kind`.
+    pub kind: String,
+    pub label: String,
+    pub version: String,
+}
+
+impl Endpoint {
+    fn kind(self) -> &'static str {
+        match self {
+            Endpoint::Local => "local",
+            Endpoint::Tls => "wsl",
+            Endpoint::Custom => "custom",
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Endpoint::Local if cfg!(windows) => "Docker Desktop",
+            Endpoint::Local => "Local Docker",
+            Endpoint::Tls => "WSL",
+            Endpoint::Custom => "Custom engine",
+        }
+    }
+}
+
+fn endpoint_for_kind(kind: &str) -> Result<Endpoint, String> {
+    [Endpoint::Local, Endpoint::Tls, Endpoint::Custom]
+        .into_iter()
+        .find(|e| e.kind() == kind)
+        .ok_or_else(|| format!("Unknown engine \"{kind}\"."))
+}
+
+/// Client for a specific engine, independent of the source picked in the top bar.
+pub fn client_for_kind(kind: &str) -> Result<Docker, String> {
+    client(endpoint_for_kind(kind)?)
+}
+
+/// Every engine that answers at the moment (the migration page needs two of them at once).
+pub async fn available() -> Vec<EngineInfo> {
+    let saved = settings::load();
+    let custom = saved.custom_endpoint.as_deref().is_some_and(|e| !e.trim().is_empty());
+    let mut endpoints = vec![Endpoint::Local, Endpoint::Tls];
+    if custom {
+        endpoints.push(Endpoint::Custom);
+    }
+    let probes = endpoints.into_iter().map(|endpoint| async move {
+        let docker = client(endpoint).ok()?;
+        let version = tokio::time::timeout(Duration::from_secs(3), docker.version()).await.ok()?.ok()?;
+        Some(EngineInfo {
+            kind: endpoint.kind().to_string(),
+            label: endpoint.label().to_string(),
+            version: version.version.unwrap_or_default(),
+        })
+    });
+    futures_util::future::join_all(probes).await.into_iter().flatten().collect()
+}
+
 async fn responds(endpoint: Endpoint) -> bool {
     let Ok(docker) = client(endpoint) else {
         return false;
@@ -334,6 +395,36 @@ fn wsl() -> Command {
     cmd.creation_flags(CREATE_NO_WINDOW);
     cmd.stdin(Stdio::null());
     cmd
+}
+
+/// A `docker` CLI invocation aimed at the engine Portus currently uses (arguments still to add).
+/// The WSL engine is driven from inside its distro, so no Docker CLI is needed on Windows.
+pub fn cli_command() -> Result<Command, String> {
+    let endpoint = *ENDPOINT.lock().unwrap();
+    let mut cmd = match endpoint {
+        Endpoint::Tls => {
+            let distro = settings::load()
+                .engine_distro
+                .ok_or("The WSL distribution hosting the engine is not known yet.")?;
+            let mut cmd = wsl();
+            cmd.args(["-d", &distro, "-u", "root", "--exec", "docker"]);
+            cmd
+        }
+        Endpoint::Local => Command::new("docker"),
+        Endpoint::Custom => {
+            let saved = settings::load();
+            let mut cmd = Command::new("docker");
+            cmd.env("DOCKER_HOST", saved.custom_endpoint.unwrap_or_default().trim());
+            if let Some(dir) = saved.custom_tls_dir.filter(|d| !d.trim().is_empty()) {
+                cmd.env("DOCKER_TLS_VERIFY", "1").env("DOCKER_CERT_PATH", dir.trim());
+            }
+            cmd
+        }
+    };
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.stdin(Stdio::null());
+    Ok(cmd)
 }
 
 fn graceful_stop(distro: &str) {

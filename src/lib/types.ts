@@ -80,6 +80,60 @@ export interface Settings {
   customTlsDir?: string;
   stopEngineOnExit: boolean;
   engineDistro?: string;
+  keepRunningInBackground: boolean;
+  launchAtStartup: boolean;
+  startMinimized: boolean;
+}
+
+/** An engine that answers right now, whichever one the top bar is set to. */
+export interface EngineInfo {
+  kind: "local" | "wsl" | "custom";
+  label: string;
+  version: string;
+}
+
+export interface EngineContents {
+  containers: ContainerSummary[];
+  images: ImageSummary[];
+  volumes: VolumeSummary[];
+}
+
+export type MigrationKind = "container" | "image" | "volume";
+export type MigrationMode = "copy" | "move";
+export type MigrationItemStatus = "pending" | "running" | "done" | "skipped" | "failed";
+export type MigrationStatus = "queued" | "running" | "done" | "partial" | "failed" | "cancelled" | "interrupted";
+
+export interface MigrationItem {
+  kind: MigrationKind;
+  id: string;
+  label: string;
+  status: MigrationItemStatus;
+  message: string;
+  bytes: number;
+  transferred: boolean;
+}
+
+export interface MigrationJob {
+  id: number;
+  from: string;
+  to: string;
+  fromLabel: string;
+  toLabel: string;
+  mode: MigrationMode;
+  status: MigrationStatus;
+  message: string;
+  items: MigrationItem[];
+  createdAt: string;
+  finishedAt?: string;
+}
+
+export interface MigrationRequest {
+  from: string;
+  to: string;
+  fromLabel: string;
+  toLabel: string;
+  mode: MigrationMode;
+  items: Array<{ kind: MigrationKind; id: string; label: string }>;
 }
 
 export interface DaemonInfo {

@@ -5,6 +5,7 @@ pub mod compose;
 pub mod engine;
 pub mod logs;
 pub mod stats;
+pub mod transfer;
 
 use bollard::Docker;
 

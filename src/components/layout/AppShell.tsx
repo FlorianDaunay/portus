@@ -8,11 +8,15 @@ import { EngineSetup } from "@/components/EngineSetup";
 import { ConnectionError } from "@/components/ui/ConnectionError";
 import { getDaemonInfo, getSettings } from "@/lib/api";
 import { useMetrics } from "@/lib/metrics";
+import { useMigrationEvents } from "@/lib/migrations";
+import { useConsoleEvents } from "@/lib/console";
 
 /** Pages that teach or take notes and don't need a running engine. */
-const offlineRoutes = ["/learn", "/commands"];
+const offlineRoutes = ["/learn", "/commands", "/settings"];
 
 export function AppShell() {
+  useMigrationEvents();
+  useConsoleEvents();
   const { pathname } = useLocation();
   const offline = offlineRoutes.some((r) => pathname === r || pathname.startsWith(`${r}/`));
   const { data, dataUpdatedAt, isPending, isError, error } = useQuery({
