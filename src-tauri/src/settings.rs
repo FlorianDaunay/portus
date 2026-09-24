@@ -17,7 +17,7 @@ pub enum EngineSource {
     Custom,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub engine_source: EngineSource,
@@ -29,6 +29,27 @@ pub struct Settings {
     pub stop_engine_on_exit: bool,
     /// WSL distribution hosting the engine Portus manages, remembered so it can be stopped later.
     pub engine_distro: Option<String>,
+    /// Closing the window hides Portus in the notification area instead of quitting.
+    pub keep_running_in_background: bool,
+    /// Portus starts with the user session (mirrors the OS registration, see `get_settings`).
+    pub launch_at_startup: bool,
+    /// When started by the OS at login, stay in the notification area without opening the window.
+    pub start_minimized: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            engine_source: EngineSource::default(),
+            custom_endpoint: None,
+            custom_tls_dir: None,
+            stop_engine_on_exit: false,
+            engine_distro: None,
+            keep_running_in_background: true,
+            launch_at_startup: false,
+            start_minimized: true,
+        }
+    }
 }
 
 /// Per-user directory for Portus state (settings, engine client certificates).

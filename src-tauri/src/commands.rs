@@ -5,8 +5,11 @@ use crate::docker::engine::{EngineManager, EngineStatus};
 use crate::docker::images::ImageSummary;
 use crate::docker::volumes::VolumeSummary;
 use crate::settings::{self, EngineSource, Settings};
+use crate::console::ConsoleManager;
+use crate::migration::{Job, MigrationManager, Request as MigrationRequest};
 use serde::Serialize;
 use tauri::AppHandle;
+use tauri_plugin_autostart::ManagerExt;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -48,8 +51,81 @@ impl DaemonInfo {
 }
 
 #[tauri::command]
-pub fn get_settings() -> Settings {
-    settings::load()
+pub fn get_settings(app: AppHandle) -> Settings {
+    let mut saved = settings::load();
+    // The OS registration is the source of truth: the user may have removed the entry themselves.
+    saved.launch_at_startup = app.autolaunch().is_enabled().unwrap_or(saved.launch_at_startup);
+    saved
+}
+
+#[tauri::command]
+pub fn set_keep_running_in_background(value: bool) -> Result<Settings, String> {
+    settings::update(|s| s.keep_running_in_background = value)
+}
+
+#[tauri::command]
+pub fn set_start_minimized(value: bool) -> Result<Settings, String> {
+    settings::update(|s| s.start_minimized = value)
+}
+
+#[tauri::command]
+pub fn set_launch_at_startup(app: AppHandle, value: bool) -> Result<Settings, String> {
+    let autolaunch = app.autolaunch();
+    if value {
+        autolaunch.enable()
+    } else {
+        autolaunch.disable()
+    }
+    .map_err(|e| format!("Could not change the startup registration: {e}"))?;
+    settings::update(|s| s.launch_at_startup = value)
+}
+
+#[tauri::command]
+pub async fn list_engines() -> Vec<docker::engine::EngineInfo> {
+    docker::engine::available().await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EngineContents {
+    pub containers: Vec<ContainerSummary>,
+    pub images: Vec<ImageSummary>,
+    pub volumes: Vec<VolumeSummary>,
+}
+
+/// Everything one engine holds, for the migration page (independent of the engine picked in the top bar).
+#[tauri::command]
+pub async fn get_engine_contents(kind: String) -> Result<EngineContents, String> {
+    let docker = docker::engine::client_for_kind(&kind)?;
+    Ok(EngineContents {
+        containers: docker::containers::list(&docker).await?,
+        images: docker::images::list(&docker).await?,
+        volumes: docker::volumes::list(&docker).await?,
+    })
+}
+
+#[tauri::command]
+pub fn list_migrations(mgr: tauri::State<'_, MigrationManager>) -> Vec<Job> {
+    mgr.list()
+}
+
+#[tauri::command]
+pub fn start_migration(
+    app: AppHandle,
+    mgr: tauri::State<'_, MigrationManager>,
+    request: MigrationRequest,
+) -> Result<Job, String> {
+    mgr.enqueue(&app, request)
+}
+
+#[tauri::command]
+pub fn cancel_migration(app: AppHandle, mgr: tauri::State<'_, MigrationManager>, id: u64) {
+    mgr.cancel(&app, id);
+}
+
+#[tauri::command]
+pub fn clear_migration_history(mgr: tauri::State<'_, MigrationManager>) {
+    mgr.clear_history();
 }
 
 #[tauri::command]
@@ -249,4 +325,20 @@ pub async fn stream_container_logs(
         let _ = docker::logs::stream_to_frontend(&docker, app, id, name).await;
     });
     Ok(())
+}
+
+/// Runs a docker command line; its output arrives as `console-output` events, then `console-exit`.
+#[tauri::command]
+pub fn run_console_command(
+    app: AppHandle,
+    mgr: tauri::State<'_, ConsoleManager>,
+    run_id: u64,
+    line: String,
+) -> Result<(), String> {
+    mgr.run(&app, run_id, &line)
+}
+
+#[tauri::command]
+pub fn cancel_console_command(mgr: tauri::State<'_, ConsoleManager>, run_id: u64) {
+    mgr.cancel(run_id);
 }

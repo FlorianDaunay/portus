@@ -13,6 +13,9 @@ import { Logs } from "@/pages/Logs";
 import { Tutorials } from "@/pages/Tutorials";
 import { TutorialDetail } from "@/pages/TutorialDetail";
 import { Commands } from "@/pages/Commands";
+import { Settings } from "@/pages/Settings";
+import { Migrate } from "@/pages/Migrate";
+import { Console } from "@/pages/Console";
 
 export function App() {
   return (
@@ -31,6 +34,9 @@ export function App() {
         <Route path="learn" element={<Tutorials />} />
         <Route path="learn/:slug" element={<TutorialDetail />} />
         <Route path="commands" element={<Commands />} />
+        <Route path="migrate" element={<Migrate />} />
+        <Route path="console" element={<Console />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>
   );

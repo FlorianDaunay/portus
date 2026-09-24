@@ -2,6 +2,10 @@ import type {
   ComposeProject,
   ContainerSummary,
   DaemonInfo,
+  EngineContents,
+  EngineInfo,
+  MigrationJob,
+  MigrationRequest,
   EngineSource,
   EngineStatus,
   ImageSummary,
@@ -46,6 +50,48 @@ export async function getSettings(): Promise<Settings> {
 
 export async function setStopEngineOnExit(value: boolean): Promise<Settings> {
   return invoke<Settings>("set_stop_engine_on_exit", { value });
+}
+
+export async function setKeepRunningInBackground(value: boolean): Promise<Settings> {
+  return invoke<Settings>("set_keep_running_in_background", { value });
+}
+
+export async function setStartMinimized(value: boolean): Promise<Settings> {
+  return invoke<Settings>("set_start_minimized", { value });
+}
+
+export async function setLaunchAtStartup(value: boolean): Promise<Settings> {
+  return invoke<Settings>("set_launch_at_startup", { value });
+}
+
+export async function listEngines(): Promise<EngineInfo[]> {
+  return invoke<EngineInfo[]>("list_engines");
+}
+
+export async function getEngineContents(kind: string): Promise<EngineContents> {
+  return invoke<EngineContents>("get_engine_contents", { kind });
+}
+
+export async function listMigrations(): Promise<MigrationJob[]> {
+  return invoke<MigrationJob[]>("list_migrations");
+}
+
+export async function startMigration(request: MigrationRequest): Promise<MigrationJob> {
+  return invoke<MigrationJob>("start_migration", { request });
+}
+
+export async function cancelMigration(id: number): Promise<void> {
+  return invoke<void>("cancel_migration", { id });
+}
+
+export async function clearMigrationHistory(): Promise<void> {
+  return invoke<void>("clear_migration_history");
+}
+
+export async function onMigrationUpdate(callback: (job: MigrationJob) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<MigrationJob>("migration-update", (event) => callback(event.payload));
 }
 
 export async function setEngineSource(source: EngineSource, endpoint?: string, tlsDir?: string): Promise<Settings> {
@@ -104,6 +150,38 @@ export async function listComposeProjects(): Promise<ComposeProject[]> {
 
 export async function listRecentLogs(): Promise<LogLine[]> {
   return invoke<LogLine[]>("list_recent_logs");
+}
+
+export interface ConsoleOutput {
+  runId: number;
+  stream: "out" | "err";
+  line: string;
+}
+
+export interface ConsoleExit {
+  runId: number;
+  code: number | null;
+}
+
+export async function runConsoleCommand(runId: number, line: string): Promise<void> {
+  return invoke<void>("run_console_command", { runId, line });
+}
+
+export async function cancelConsoleCommand(runId: number): Promise<void> {
+  return invoke<void>("cancel_console_command", { runId });
+}
+
+export async function onConsoleEvents(
+  onOutput: (event: ConsoleOutput) => void,
+  onExit: (event: ConsoleExit) => void
+): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  const stops = await Promise.all([
+    listen<ConsoleOutput>("console-output", (e) => onOutput(e.payload)),
+    listen<ConsoleExit>("console-exit", (e) => onExit(e.payload)),
+  ]);
+  return () => stops.forEach((stop) => stop());
 }
 
 export { isTauri };

@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import {
+  BuildDiagram,
   ComposeDiagram,
   LayersDiagram,
   LifecycleDiagram,
@@ -156,6 +157,33 @@ export const lessons: Lesson[] = [
       { command: "docker network create app-net", note: "Create a network for your containers to share." },
     ],
     tryIt: { label: "Open Containers", to: "/containers" },
+  },
+  {
+    slug: "dockerfile-and-builds",
+    title: "Dockerfile and building images",
+    summary: "Turn your own code into an image other people (and servers) can run.",
+    level: "Intermediate",
+    Diagram: BuildDiagram,
+    sections: [
+      {
+        heading: "A recipe for an image",
+        body: "A Dockerfile lists the steps that produce an image: start FROM a base image, COPY your files in, RUN the install commands, then say what to run with CMD. docker build executes the steps and tags the result.",
+      },
+      {
+        heading: "Layers and the cache",
+        body: "Each step becomes a layer, and Docker reuses a layer when nothing before it changed. Copy the dependency list and install first, your source code last: everyday edits then rebuild in seconds instead of minutes.",
+      },
+      {
+        heading: "Keep it small",
+        body: "Use a slim base image, add a .dockerignore so node_modules or .git stay out of the build, and consider a multi-stage build: compile in a big image, copy only the result into a small one.",
+      },
+    ],
+    commands: [
+      { command: "docker build -t myapp:1.0 .", note: "Build the Dockerfile of the current folder and tag the image." },
+      { command: "docker run --rm -p 3000:3000 myapp:1.0", note: "Try the image you just built." },
+      { command: "docker history myapp:1.0", note: "See the layers and how big each one is." },
+    ],
+    tryIt: { label: "Open Images", to: "/images" },
   },
   {
     slug: "docker-compose",
