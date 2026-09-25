@@ -152,3 +152,79 @@ export interface DaemonInfo {
   cpuPercent: number;
   memUsedMb: number;
 }
+
+export interface NetworkNode {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+  internal: boolean;
+  subnet: string | null;
+  gateway: string | null;
+  /** bridge, host, none: created by Docker itself. */
+  builtin: boolean;
+}
+
+export interface NetworkAttachment {
+  network: string;
+  ip: string | null;
+  aliases: string[];
+}
+
+export interface PortMapping {
+  /** Set when the port is published on the host. */
+  hostIp: string | null;
+  hostPort: number | null;
+  containerPort: number;
+  protocol: string;
+}
+
+export interface NetworkContainer {
+  id: string;
+  name: string;
+  state: string;
+  project: string | null;
+  networks: NetworkAttachment[];
+  ports: PortMapping[];
+}
+
+export interface NetworkMap {
+  networks: NetworkNode[];
+  containers: NetworkContainer[];
+}
+
+export type RegistryKind = "hub" | "ghcr" | "gitlab" | "custom";
+
+export interface RegistryInfo {
+  id: string;
+  name: string;
+  kind: RegistryKind;
+  host: string;
+  username: string;
+  hasPassword: boolean;
+}
+
+export interface RegistryInput {
+  id?: string;
+  name: string;
+  kind: RegistryKind;
+  host: string;
+  username: string;
+  /** Omitted to keep the saved password. */
+  password?: string;
+}
+
+export interface RepoHit {
+  name: string;
+  description: string;
+  stars: number | null;
+  official: boolean;
+}
+
+export interface RegistryProgress {
+  op: "pull" | "push";
+  reference: string;
+  id: string | null;
+  status: string;
+  progress: string | null;
+}

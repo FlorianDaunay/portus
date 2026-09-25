@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plug } from "lucide-react";
+import { Loader2, Plug } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getSettings, setEngineSource } from "@/lib/api";
+import { refreshAfterEngineSwitch } from "@/lib/engineFlags";
 import { isWindows } from "@/lib/utils";
 
 const inputClass =
@@ -35,7 +36,7 @@ export function EngineEndpointForm({ onSaved }: { onSaved?: () => void }) {
   const connect = useMutation({
     mutationFn: () => setEngineSource("custom", endpoint, tlsDir),
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      refreshAfterEngineSwitch(queryClient);
       onSaved?.();
     },
     meta: { label: "Connect to Docker" },
@@ -114,7 +115,7 @@ export function EngineEndpointForm({ onSaved }: { onSaved?: () => void }) {
 
       <div className="flex justify-end">
         <Button type="submit" variant="primary" size="md" disabled={!endpoint.trim() || connect.isPending}>
-          <Plug size={15} />
+          {connect.isPending ? <Loader2 size={15} className="animate-spin" /> : <Plug size={15} />}
           {connect.isPending ? "Connecting..." : "Connect"}
         </Button>
       </div>

@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Layers } from "lucide-react";
+import { Layers, Play } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { CreateContainerDialog } from "@/components/CreateContainerDialog";
 import { BackLink } from "@/components/ui/BackLink";
 import { DetailField } from "@/components/ui/DetailField";
 import { ConnectionError } from "@/components/ui/ConnectionError";
@@ -11,6 +14,7 @@ import { formatBytes, timeAgo } from "@/lib/utils";
 
 export function ImageDetail() {
   const { id } = useParams();
+  const [creating, setCreating] = useState(false);
   const images = useQuery({ queryKey: ["images"], queryFn: listImages });
   const containers = useQuery({ queryKey: ["containers"], queryFn: listContainers, refetchInterval: 5000 });
 
@@ -55,11 +59,17 @@ export function ImageDetail() {
             {image.id}
           </p>
         </div>
-        {image.inUse ? (
-          <span className="shrink-0 text-xs font-medium text-success">In use</span>
-        ) : (
-          <span className="shrink-0 text-xs text-text-muted">Unused</span>
-        )}
+        <div className="flex shrink-0 items-center gap-3">
+          {image.inUse ? (
+            <span className="text-xs font-medium text-success">In use</span>
+          ) : (
+            <span className="text-xs text-text-muted">Unused</span>
+          )}
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            <Play size={14} />
+            Create container
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -89,6 +99,7 @@ export function ImageDetail() {
           <ContainerLinks containers={users} empty="No container uses this image." />
         </CardContent>
       </Card>
+      {creating && <CreateContainerDialog image={image} onClose={() => setCreating(false)} />}
     </div>
   );
 }

@@ -5,6 +5,11 @@ import type {
   EngineContents,
   EngineInfo,
   MigrationJob,
+  NetworkMap,
+  RegistryInfo,
+  RegistryInput,
+  RegistryProgress,
+  RepoHit,
   MigrationRequest,
   EngineSource,
   EngineStatus,
@@ -64,12 +69,29 @@ export async function setLaunchAtStartup(value: boolean): Promise<Settings> {
   return invoke<Settings>("set_launch_at_startup", { value });
 }
 
+/** A backend task that dies never answers its `invoke`: give up instead of loading forever. */
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${what} did not answer in ${ms / 1000} seconds.`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 export async function listEngines(): Promise<EngineInfo[]> {
-  return invoke<EngineInfo[]>("list_engines");
+  return withTimeout(invoke<EngineInfo[]>("list_engines"), 15000, "Looking for Docker engines");
 }
 
 export async function getEngineContents(kind: string): Promise<EngineContents> {
-  return invoke<EngineContents>("get_engine_contents", { kind });
+  return withTimeout(invoke<EngineContents>("get_engine_contents", { kind }), 60000, "The engine");
 }
 
 export async function listMigrations(): Promise<MigrationJob[]> {
@@ -122,6 +144,18 @@ export async function stopContainer(id: string): Promise<void> {
 
 export async function restartContainer(id: string): Promise<void> {
   return invoke<void>("restart_container", { id });
+}
+
+export interface CreateContainerRequest {
+  image: string;
+  name?: string;
+  ports: string[];
+  env: string[];
+  start: boolean;
+}
+
+export async function createContainer(request: CreateContainerRequest): Promise<string> {
+  return invoke<string>("create_container", { ...request });
 }
 
 export async function removeContainer(id: string): Promise<void> {
@@ -185,3 +219,45 @@ export async function onConsoleEvents(
 }
 
 export { isTauri };
+
+export async function getNetworkMap(): Promise<NetworkMap> {
+  return invoke<NetworkMap>("get_network_map");
+}
+
+export async function listRegistries(): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("list_registries");
+}
+
+export async function saveRegistry(input: RegistryInput): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("save_registry", { input });
+}
+
+export async function removeRegistry(id: string): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("remove_registry", { id });
+}
+
+export async function testRegistry(id: string): Promise<void> {
+  return invoke<void>("test_registry", { id });
+}
+
+export async function searchRegistry(id: string, query: string): Promise<RepoHit[]> {
+  return invoke<RepoHit[]>("search_registry", { id, query });
+}
+
+export async function listRegistryTags(id: string, repository: string): Promise<string[]> {
+  return invoke<string[]>("list_registry_tags", { id, repository });
+}
+
+export async function pullFromRegistry(id: string, repository: string, tag: string): Promise<string> {
+  return invoke<string>("pull_from_registry", { id, repository, tag });
+}
+
+export async function pushToRegistry(id: string, source: string, repository: string, tag: string): Promise<string> {
+  return invoke<string>("push_to_registry", { id, source, repository, tag });
+}
+
+export async function onRegistryProgress(callback: (progress: RegistryProgress) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<RegistryProgress>("registry-progress", (event) => callback(event.payload));
+}

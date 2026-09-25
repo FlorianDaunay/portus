@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Layers, Trash2 } from "lucide-react";
+import { Layers, Play, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConnectionError } from "@/components/ui/ConnectionError";
+import { CreateContainerDialog } from "@/components/CreateContainerDialog";
 import { SortableTh } from "@/components/ui/SortableTh";
 import { listImages, removeImage } from "@/lib/api";
 import { useSort } from "@/lib/sort";
@@ -25,6 +26,7 @@ const inUseFirst = (a: ImageSummary, b: ImageSummary) => Number(b.inUse) - Numbe
 
 export function Images() {
   const [query, setQuery] = useState("");
+  const [creating, setCreating] = useState<ImageSummary | null>(null);
   const { sort, toggle, sortRows } = useSort(columns, inUseFirst);
   const queryClient = useQueryClient();
   const { data: images, isError, error } = useQuery({ queryKey: ["images"], queryFn: listImages });
@@ -93,6 +95,9 @@ export function Images() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex justify-end">
+                      <Button variant="ghost" size="icon" onClick={() => setCreating(img)} title="Create a container">
+                        <Play size={14} />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -111,6 +116,7 @@ export function Images() {
           </table>
         )}
       </Card>
+      {creating && <CreateContainerDialog image={creating} onClose={() => setCreating(null)} />}
     </div>
   );
 }

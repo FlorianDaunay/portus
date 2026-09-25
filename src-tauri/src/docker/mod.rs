@@ -4,6 +4,8 @@ pub mod volumes;
 pub mod compose;
 pub mod engine;
 pub mod logs;
+pub mod networks;
+pub mod registry;
 pub mod stats;
 pub mod transfer;
 

@@ -16,6 +16,10 @@ bollard = { version = "0.17", features = ["ssl"] }
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 bytes = "1"
+reqwest = { version = "0.13", features = ["json", "query"] }
+# bollard (TLS to the WSL engine) and reqwest pull in different rustls crypto backends; rustls then
+# refuses to pick one and panics, so main() installs `ring` explicitly.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-autostart = "2"
