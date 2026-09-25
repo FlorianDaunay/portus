@@ -76,6 +76,7 @@ fn main() {
             commands::stop_container,
             commands::restart_container,
             commands::remove_container,
+            commands::create_container,
             commands::list_images,
             commands::remove_image,
             commands::list_volumes,

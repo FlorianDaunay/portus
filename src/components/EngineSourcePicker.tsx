@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Server } from "lucide-react";
+import { Check, Loader2, Server } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EngineEndpointForm } from "@/components/EngineEndpointForm";
+import { refreshAfterEngineSwitch } from "@/lib/engineFlags";
 import { getDaemonInfo, getSettings, setEngineSource } from "@/lib/api";
 import { cn, isWindows } from "@/lib/utils";
 import type { EngineSource } from "@/lib/types";
@@ -48,7 +49,7 @@ export function EngineSourcePicker() {
   const select = useMutation({
     mutationFn: (value: EngineSource) => setEngineSource(value),
     onSuccess: () => {
-      queryClient.invalidateQueries();
+      refreshAfterEngineSwitch(queryClient);
       setOpen(false);
     },
     meta: { label: "Switch Docker engine" },
@@ -81,8 +82,8 @@ export function EngineSourcePicker() {
   return (
     <div ref={rootRef} className="relative">
       <Button variant="ghost" size="sm" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <Server size={15} />
-        <span className="hidden sm:inline">{label}</span>
+        {select.isPending ? <Loader2 size={15} className="animate-spin" /> : <Server size={15} />}
+        <span className="hidden sm:inline">{select.isPending ? "Switching..." : label}</span>
       </Button>
 
       {open && (
@@ -97,6 +98,12 @@ export function EngineSourcePicker() {
             </h2>
             <p className="mt-0.5 text-xs text-text-muted">Choose which Docker Portus connects to.</p>
           </div>
+          {select.isPending && (
+            <p role="status" className="flex items-center gap-2 border-b px-5 py-2 text-xs text-text-secondary">
+              <Loader2 size={13} className="animate-spin" />
+              Connecting to the engine...
+            </p>
+          )}
           <div role="radiogroup" aria-label="Docker engine" className="flex flex-col gap-1 p-2">
             {options
               .filter((o) => !o.windowsOnly || isWindows)

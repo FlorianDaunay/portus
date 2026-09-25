@@ -9,6 +9,8 @@ import {
   HardDrive,
   Layers,
   Link2,
+  Loader2,
+  RefreshCw,
   Server,
   type LucideIcon,
 } from "lucide-react";
@@ -170,7 +172,12 @@ function Column({
 }
 
 export function Migrate() {
-  const { data: engines, isPending } = useQuery({ queryKey: ["engines"], queryFn: listEngines, refetchInterval: 10000 });
+  const {
+    data: engines,
+    isPending,
+    isFetching,
+    refetch,
+  } = useQuery({ queryKey: ["engines"], queryFn: listEngines, refetchInterval: 10000 });
   const { data: jobs } = useMigrations();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -300,13 +307,27 @@ export function Migrate() {
         </p>
       </div>
 
-      {isPending ? null : !engines || engines.length < 2 ? (
+      {isPending ? (
+        <div className="flex justify-center py-10 text-text-muted">
+          <Loader2 size={20} className="animate-spin" />
+        </div>
+      ) : !engines || engines.length < 2 ? (
         <Card>
           <EmptyState
             icon={ArrowLeftRight}
             title="Two engines are needed"
-            description={`Only ${engines?.length ?? 0} Docker engine answers right now. Start both (for example Docker Desktop and the WSL engine) to migrate from one to the other.`}
+            description={`${
+              engines?.length
+                ? `Only ${engines[0].label} answers right now.`
+                : "No Docker engine answers right now."
+            } Start a second one (for example Docker Desktop next to the WSL engine, or add an endpoint under Other... in the top bar) to migrate from one to the other. The engines are checked every few seconds.`}
           />
+          <div className="flex justify-center pb-8">
+            <Button onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw size={14} className={isFetching ? "animate-spin" : undefined} />
+              Check again
+            </Button>
+          </div>
         </Card>
       ) : (
         <>

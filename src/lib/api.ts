@@ -129,6 +129,18 @@ export async function restartContainer(id: string): Promise<void> {
   return invoke<void>("restart_container", { id });
 }
 
+export interface CreateContainerRequest {
+  image: string;
+  name?: string;
+  ports: string[];
+  env: string[];
+  start: boolean;
+}
+
+export async function createContainer(request: CreateContainerRequest): Promise<string> {
+  return invoke<string>("create_container", { ...request });
+}
+
 export async function removeContainer(id: string): Promise<void> {
   return invoke<void>("remove_container", { id });
 }

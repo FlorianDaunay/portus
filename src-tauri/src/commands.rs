@@ -136,7 +136,7 @@ pub fn set_stop_engine_on_exit(value: bool) -> Result<Settings, String> {
 
 /// Picks which engine Portus talks to. `endpoint`/`tls_dir` are only kept for the custom source.
 #[tauri::command]
-pub fn set_engine_source(
+pub async fn set_engine_source(
     source: EngineSource,
     endpoint: Option<String>,
     tls_dir: Option<String>,
@@ -151,13 +151,17 @@ pub fn set_engine_source(
             return Err("The address must start with unix://, npipe:// or tcp://.".into());
         }
     }
-    settings::update(|s| {
+    let saved = settings::update(|s| {
         s.engine_source = source;
         if source == EngineSource::Custom {
             s.custom_endpoint = endpoint;
             s.custom_tls_dir = tls_dir;
         }
-    })
+    })?;
+    // Point the shared client at the new engine before the frontend refetches, otherwise the
+    // first queries would still hit the previous one.
+    docker::engine::detect().await;
+    Ok(saved)
 }
 
 #[tauri::command]
@@ -271,6 +275,18 @@ pub async fn restart_container(id: String) -> Result<(), String> {
 pub async fn remove_container(id: String) -> Result<(), String> {
     let docker = docker::connect()?;
     docker::containers::remove(&docker, &id).await
+}
+
+#[tauri::command]
+pub async fn create_container(
+    image: String,
+    name: Option<String>,
+    ports: Vec<String>,
+    env: Vec<String>,
+    start: bool,
+) -> Result<String, String> {
+    let docker = docker::connect()?;
+    docker::containers::create(&docker, &image, name, ports, env, start).await
 }
 
 #[tauri::command]
