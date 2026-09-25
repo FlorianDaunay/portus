@@ -22,7 +22,7 @@ import { getEngineContents, listEngines, startMigration } from "@/lib/api";
 import { useMigrations } from "@/lib/migrations";
 import { containerKey, imageKey, imageLabel, relatedKeys, resolvePlan, volumeKey } from "@/lib/migrationPlan";
 import { toast } from "@/lib/toast";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, errorMessage, formatBytes } from "@/lib/utils";
 import type { EngineContents, EngineInfo, MigrationMode } from "@/lib/types";
 
 const selectClass =
@@ -34,12 +34,14 @@ function EngineCard({
   value,
   onChange,
   contents,
+  failed,
 }: {
   role: string;
   engines: EngineInfo[];
   value: string;
   onChange: (kind: string) => void;
   contents?: EngineContents;
+  failed?: boolean;
 }) {
   const engine = engines.find((e) => e.kind === value);
   return (
@@ -66,7 +68,9 @@ function EngineCard({
       <p className="text-xs text-text-muted">
         {contents
           ? `${contents.containers.length} containers, ${contents.images.length} images, ${contents.volumes.length} volumes`
-          : "Reading..."}
+          : failed
+            ? "Could not read this engine."
+            : "Reading..."}
       </p>
     </Card>
   );
@@ -176,6 +180,8 @@ export function Migrate() {
     data: engines,
     isPending,
     isFetching,
+    isError,
+    error,
     refetch,
   } = useQuery({ queryKey: ["engines"], queryFn: listEngines, refetchInterval: 10000 });
   const { data: jobs } = useMigrations();
@@ -196,12 +202,12 @@ export function Migrate() {
   }, [engines, from, to]);
 
   const ready = !!engines && engines.length >= 2 && !!from && !!to && from !== to;
-  const { data: source } = useQuery({
+  const { data: source, isError: sourceFailed } = useQuery({
     queryKey: ["engine-contents", from],
     queryFn: () => getEngineContents(from),
     enabled: ready,
   });
-  const { data: destination } = useQuery({
+  const { data: destination, isError: destinationFailed } = useQuery({
     queryKey: ["engine-contents", to],
     queryFn: () => getEngineContents(to),
     enabled: ready,
@@ -317,7 +323,9 @@ export function Migrate() {
             icon={ArrowLeftRight}
             title="Two engines are needed"
             description={`${
-              engines?.length
+              isError
+                ? `Looking for engines failed: ${errorMessage(error)}`
+                : engines?.length
                 ? `Only ${engines[0].label} answers right now.`
                 : "No Docker engine answers right now."
             } Start a second one (for example Docker Desktop next to the WSL engine, or add an endpoint under Other... in the top bar) to migrate from one to the other. The engines are checked every few seconds.`}
@@ -332,7 +340,7 @@ export function Migrate() {
       ) : (
         <>
           <div className="flex flex-col items-stretch gap-3 md:flex-row md:items-center">
-            <EngineCard role="From" engines={engines} value={from} onChange={changeSource} contents={source} />
+            <EngineCard role="From" engines={engines} value={from} onChange={changeSource} contents={source} failed={sourceFailed} />
             <div className="flex shrink-0 flex-col items-center gap-2 self-center">
               <Button variant="ghost" size="icon" onClick={swap} aria-label="Swap source and destination">
                 <ArrowLeftRight size={16} />
@@ -354,7 +362,7 @@ export function Migrate() {
                 ))}
               </div>
             </div>
-            <EngineCard role="To" engines={engines} value={to} onChange={setTo} contents={destination} />
+            <EngineCard role="To" engines={engines} value={to} onChange={setTo} contents={destination} failed={destinationFailed} />
           </div>
 
           {projects.length > 0 && (

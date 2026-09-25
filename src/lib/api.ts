@@ -69,12 +69,29 @@ export async function setLaunchAtStartup(value: boolean): Promise<Settings> {
   return invoke<Settings>("set_launch_at_startup", { value });
 }
 
+/** A backend task that dies never answers its `invoke`: give up instead of loading forever. */
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${what} did not answer in ${ms / 1000} seconds.`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 export async function listEngines(): Promise<EngineInfo[]> {
-  return invoke<EngineInfo[]>("list_engines");
+  return withTimeout(invoke<EngineInfo[]>("list_engines"), 15000, "Looking for Docker engines");
 }
 
 export async function getEngineContents(kind: string): Promise<EngineContents> {
-  return invoke<EngineContents>("get_engine_contents", { kind });
+  return withTimeout(invoke<EngineContents>("get_engine_contents", { kind }), 60000, "The engine");
 }
 
 export async function listMigrations(): Promise<MigrationJob[]> {

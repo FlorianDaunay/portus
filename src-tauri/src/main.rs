@@ -14,6 +14,8 @@ use tauri::Manager;
 const AUTOSTART_FLAG: &str = "--autostart";
 
 fn main() {
+    // Must run before any TLS client is built (see the rustls note in Cargo.toml).
+    let _ = rustls::crypto::ring::default_provider().install_default();
     tauri::Builder::default()
         // A second launch (double-click on the exe while Portus sits in the tray) reopens the window.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_window(app)))

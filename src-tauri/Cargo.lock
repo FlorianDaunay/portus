@@ -2936,6 +2936,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",
