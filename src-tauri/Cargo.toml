@@ -16,6 +16,7 @@ bollard = { version = "0.17", features = ["ssl"] }
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 bytes = "1"
+reqwest = { version = "0.13", features = ["json", "query"] }
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-autostart = "2"

@@ -5,6 +5,11 @@ import type {
   EngineContents,
   EngineInfo,
   MigrationJob,
+  NetworkMap,
+  RegistryInfo,
+  RegistryInput,
+  RegistryProgress,
+  RepoHit,
   MigrationRequest,
   EngineSource,
   EngineStatus,
@@ -185,3 +190,45 @@ export async function onConsoleEvents(
 }
 
 export { isTauri };
+
+export async function getNetworkMap(): Promise<NetworkMap> {
+  return invoke<NetworkMap>("get_network_map");
+}
+
+export async function listRegistries(): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("list_registries");
+}
+
+export async function saveRegistry(input: RegistryInput): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("save_registry", { input });
+}
+
+export async function removeRegistry(id: string): Promise<RegistryInfo[]> {
+  return invoke<RegistryInfo[]>("remove_registry", { id });
+}
+
+export async function testRegistry(id: string): Promise<void> {
+  return invoke<void>("test_registry", { id });
+}
+
+export async function searchRegistry(id: string, query: string): Promise<RepoHit[]> {
+  return invoke<RepoHit[]>("search_registry", { id, query });
+}
+
+export async function listRegistryTags(id: string, repository: string): Promise<string[]> {
+  return invoke<string[]>("list_registry_tags", { id, repository });
+}
+
+export async function pullFromRegistry(id: string, repository: string, tag: string): Promise<string> {
+  return invoke<string>("pull_from_registry", { id, repository, tag });
+}
+
+export async function pushToRegistry(id: string, source: string, repository: string, tag: string): Promise<string> {
+  return invoke<string>("push_to_registry", { id, source, repository, tag });
+}
+
+export async function onRegistryProgress(callback: (progress: RegistryProgress) => void): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<RegistryProgress>("registry-progress", (event) => callback(event.payload));
+}

@@ -4,6 +4,7 @@ use crate::docker::containers::ContainerSummary;
 use crate::docker::engine::{EngineManager, EngineStatus};
 use crate::docker::images::ImageSummary;
 use crate::docker::volumes::VolumeSummary;
+use crate::registry;
 use crate::settings::{self, EngineSource, Settings};
 use crate::console::ConsoleManager;
 use crate::migration::{Job, MigrationManager, Request as MigrationRequest};
@@ -341,4 +342,62 @@ pub fn run_console_command(
 #[tauri::command]
 pub fn cancel_console_command(mgr: tauri::State<'_, ConsoleManager>, run_id: u64) {
     mgr.cancel(run_id);
+}
+
+#[tauri::command]
+pub async fn get_network_map() -> Result<docker::networks::NetworkMap, String> {
+    let docker = docker::connect()?;
+    docker::networks::map(&docker).await
+}
+
+#[tauri::command]
+pub fn list_registries() -> Vec<registry::RegistryInfo> {
+    registry::infos()
+}
+
+#[tauri::command]
+pub fn save_registry(input: registry::RegistryInput) -> Result<Vec<registry::RegistryInfo>, String> {
+    registry::upsert(input)
+}
+
+#[tauri::command]
+pub fn remove_registry(id: String) -> Result<Vec<registry::RegistryInfo>, String> {
+    registry::remove(&id)
+}
+
+#[tauri::command]
+pub async fn test_registry(id: String) -> Result<(), String> {
+    registry::test(&registry::get(&id)?).await
+}
+
+#[tauri::command]
+pub async fn search_registry(id: String, query: String) -> Result<Vec<registry::RepoHit>, String> {
+    registry::search(&registry::get(&id)?, &query).await
+}
+
+#[tauri::command]
+pub async fn list_registry_tags(id: String, repository: String) -> Result<Vec<String>, String> {
+    registry::tags(&registry::get(&id)?, &repository).await
+}
+
+/// Returns the full reference that was pulled.
+#[tauri::command]
+pub async fn pull_from_registry(app: AppHandle, id: String, repository: String, tag: String) -> Result<String, String> {
+    let reg = registry::get(&id)?;
+    let docker = docker::connect()?;
+    docker::registry::pull(&app, &docker, &reg, &repository, &tag).await
+}
+
+/// `source` is a local image id or `repo:tag`. Returns the full reference that was pushed.
+#[tauri::command]
+pub async fn push_to_registry(
+    app: AppHandle,
+    id: String,
+    source: String,
+    repository: String,
+    tag: String,
+) -> Result<String, String> {
+    let reg = registry::get(&id)?;
+    let docker = docker::connect()?;
+    docker::registry::push(&app, &docker, &reg, &source, &repository, &tag).await
 }

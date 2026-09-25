@@ -10,6 +10,8 @@ import {
   TerminalSquare,
   ArrowLeftRight,
   SquareTerminal,
+  Network,
+  Cloud,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -32,12 +34,14 @@ const navGroups: Array<{ title?: string; items: NavItem[] }> = [
       { to: "/compose", label: "Compose", icon: Combine },
       { to: "/images", label: "Images", icon: Layers },
       { to: "/volumes", label: "Volumes", icon: HardDrive },
+      { to: "/network", label: "Network", icon: Network },
       { to: "/logs", label: "Logs", icon: ScrollText },
     ],
   },
   {
     title: "Tools",
     items: [
+      { to: "/registries", label: "Registries", icon: Cloud },
       { to: "/migrate", label: "Migrate", icon: ArrowLeftRight },
       { to: "/console", label: "Console", icon: SquareTerminal },
     ],

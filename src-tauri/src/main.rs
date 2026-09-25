@@ -4,6 +4,7 @@ mod commands;
 mod console;
 mod docker;
 mod migration;
+mod registry;
 mod settings;
 mod tray;
 
@@ -60,6 +61,15 @@ fn main() {
             commands::clear_migration_history,
             commands::run_console_command,
             commands::cancel_console_command,
+            commands::list_registries,
+            commands::save_registry,
+            commands::remove_registry,
+            commands::test_registry,
+            commands::search_registry,
+            commands::list_registry_tags,
+            commands::pull_from_registry,
+            commands::push_to_registry,
+            commands::get_network_map,
             commands::get_daemon_info,
             commands::list_containers,
             commands::start_container,

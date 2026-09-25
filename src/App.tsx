@@ -16,6 +16,8 @@ import { Commands } from "@/pages/Commands";
 import { Settings } from "@/pages/Settings";
 import { Migrate } from "@/pages/Migrate";
 import { Console } from "@/pages/Console";
+import { Network } from "@/pages/Network";
+import { Registries } from "@/pages/Registries";
 
 export function App() {
   return (
@@ -30,6 +32,8 @@ export function App() {
         <Route path="images/:id" element={<ImageDetail />} />
         <Route path="volumes" element={<Volumes />} />
         <Route path="volumes/:name" element={<VolumeDetail />} />
+        <Route path="network" element={<Network />} />
+        <Route path="registries" element={<Registries />} />
         <Route path="logs" element={<Logs />} />
         <Route path="learn" element={<Tutorials />} />
         <Route path="learn/:slug" element={<TutorialDetail />} />
